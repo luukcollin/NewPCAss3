@@ -10,9 +10,12 @@ public class Sort {
     }
 
     public List<Coin> sort(List<Coin> unsorted) {
-        mergesort(unsorted, 0, unsorted.size());
-        List<Coin[]> sortedArray = smallerArrays;
-        return new ArrayList<Coin>(Arrays.asList(sortedArray.get(smallerArrays.size() - 1)));
+        if(unsorted.size() > 0) {
+            mergesort(unsorted, 0, unsorted.size());
+            List<Coin[]> sortedArray = smallerArrays;
+            return new ArrayList<Coin>(Arrays.asList(sortedArray.get(smallerArrays.size() - 1)));
+        }
+        return unsorted;
     }
 
 

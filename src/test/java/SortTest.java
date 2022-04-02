@@ -1,3 +1,4 @@
+import java.lang.reflect.Array;
 import java.util.*;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -37,8 +38,46 @@ public class SortTest {
                 result) {
             System.out.println(c.toString());
         }
-        Assertions.assertEquals(result, COMPLETELY_SORTED_AND_MERGED);
+        Assertions.assertEquals(COMPLETELY_SORTED_AND_MERGED, result);
     }
+
+    @Test
+    public void sortEmptyArray(){
+        Sort sort = new Sort();
+        Assertions.assertEquals( 0, sort.sort(new ArrayList<Coin>()).size());
+    }
+
+    @Test
+    /* test the compareTo method. If marketcap var and price var are equal, sort by id */
+    public void testComparisonPriority(){
+         Coin coinObject1 = new Coin(45984.5412165, 100, 58331.30, new GregorianCalendar(2022, Calendar.FEBRUARY, 12), 1);
+         Coin coinObject2 = new Coin(45984.5412165, 450, 58331.30, new GregorianCalendar(2022, Calendar.FEBRUARY, 12), 2);
+         Coin coinObject3 = new Coin(45984.5412165, 100, 58331.30, new GregorianCalendar(2022, Calendar.FEBRUARY, 12), 3);
+
+         Sort sort = new Sort();
+         List<Coin> result = sort.sort(new ArrayList<>(Arrays.asList(coinObject1, coinObject2, coinObject3)));
+         List<Coin> expected = new ArrayList<>(Arrays.asList(coinObject1, coinObject3, coinObject2));
+
+         Assertions.assertEquals(expected, result);
+    }
+
+    @Test
+    public void sortedListContainsAllElementsOfUnsortedLists(){
+        Sort sort = new Sort();
+        List<Coin> sortedList1 = sort.sort(unsortedList1);
+        List<Coin> sortedList2 = sort.sort(unsortedList2);
+
+        Merger merger = new Merger();
+        List<Coin> result = merger.mergeInOrderWithPivot(sortedList1, sortedList2);
+
+        List<Coin> temp = unsortedList1;
+        temp.addAll(unsortedList2);
+        for(Coin c : temp){
+            Assertions.assertTrue(result.contains(c));
+        }
+
+    }
+
 }
 
 
