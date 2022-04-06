@@ -6,17 +6,23 @@ import java.util.Scanner;
 public class Master {
 
     private List<Worker> workers;
-    private Process[] processes;
+
 
     private static String MERGER_TOPIC;
+    public static void main(String[] args) throws IOException, InterruptedException {
+        Master master = new Master();
+    }
+
     public Master() throws IOException, InterruptedException {
         Scanner input = new Scanner(System.in);
         System.out.print("Hoeveel nodes zullen we gebruiken voor deze operatie?");
         int amountOfNodes = input.nextInt();
-        processes = createWorkers(amountOfNodes);
+        Process officer = createOfficer();
+        Process[] processes = createWorkers(amountOfNodes);
         for(Process p : processes){
             p.waitFor(); //Wacht totdat alle workers hun eigen data gegenereert en gesorteerd hebben.
         }
+
         //De officer kan nu de hoogste, laagste en pivots opvragen aan de nodes.
         //De workers hebben nu hun eigen data gesorteerd en deze gesorteerde lijst lokaal ter beschikking; private List<Coin> sortedElements;
 
@@ -38,11 +44,36 @@ public class Master {
                 "--nodeId", String.valueOf(i+1),
                 "--numClients", String.valueOf(amountOfNodes)
 
+
         );
             ///Deze workers zullen beginnen met getallen genereren en sorteren wanner .start() aangeroepen wordt
             processes[i] = child.inheritIO().start();
 
+
         }
         return processes;
+    }
+
+    public Process createOfficer() throws IOException {
+        Process process;
+
+        String javaBin = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
+        String classPath = System.getProperty("java.class.path");
+
+        //Maak nieuwe workers.
+
+
+            ProcessBuilder child = new ProcessBuilder(
+                    javaBin, "-classpath", classPath, offe.class.getCanonicalName());
+        process = child.inheritIO().start();
+
+
+            ///Deze workers zullen beginnen met getallen genereren en sorteren wanner .start() aangeroepen wordt
+
+
+
+
+
+        return process;
     }
 }
