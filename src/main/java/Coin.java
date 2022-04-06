@@ -31,7 +31,7 @@ public class Coin implements Comparable<Coin>, Serializable {
 
     @Override
     public String toString(){
-        return "( Coin ID: " + id +  ", Marketcap: " + marketCap + ", Price: €" + price + ", Daily Volume: €" + dailyVolume +   ")\n";
+        return "( Price: €" + price + ", Coin ID: " + id +  ", Marketcap: " + marketCap + ", Daily Volume: €" + dailyVolume +   ")\n";
     }
 
 

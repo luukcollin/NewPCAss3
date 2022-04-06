@@ -17,7 +17,7 @@ public class Master {
         Scanner input = new Scanner(System.in);
         System.out.print("Hoeveel nodes zullen we gebruiken voor deze operatie?");
         int amountOfNodes = input.nextInt();
-        Process officer = createOfficer();
+        createOfficer(); //TODO method could be void
         Process[] processes = createWorkers(amountOfNodes);
         for(Process p : processes){
             p.waitFor(); //Wacht totdat alle workers hun eigen data gegenereert en gesorteerd hebben.
@@ -27,7 +27,7 @@ public class Master {
         //De workers hebben nu hun eigen data gesorteerd en deze gesorteerde lijst lokaal ter beschikking; private List<Coin> sortedElements;
 
 
-        new Officer("HetMergerTopic").generateMergerQueues();
+
     }
 
     public Process[] createWorkers(int amountOfNodes) throws IOException {
@@ -55,25 +55,13 @@ public class Master {
     }
 
     public Process createOfficer() throws IOException {
-        Process process;
+
 
         String javaBin = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
         String classPath = System.getProperty("java.class.path");
+        ProcessBuilder child = new ProcessBuilder(
+                    javaBin, "-classpath", classPath, Officer.class.getCanonicalName());
+       return child.inheritIO().start();
 
-        //Maak nieuwe workers.
-
-
-            ProcessBuilder child = new ProcessBuilder(
-                    javaBin, "-classpath", classPath, offe.class.getCanonicalName());
-        process = child.inheritIO().start();
-
-
-            ///Deze workers zullen beginnen met getallen genereren en sorteren wanner .start() aangeroepen wordt
-
-
-
-
-
-        return process;
     }
 }
