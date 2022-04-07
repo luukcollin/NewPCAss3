@@ -30,6 +30,30 @@ public class Master {
 
     }
 
+    public Process[] createMergers(int amountOfNodes) throws IOException {
+        Process[] processes = new Process[amountOfNodes];
+
+        String javaBin = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
+        String classPath = System.getProperty("java.class.path");
+
+        //Maak nieuwe workers.
+        for (int i = 0; i < amountOfNodes; i++){
+            if(i%2 == 0) {
+                ProcessBuilder child = new ProcessBuilder(
+                        javaBin, "-classpath", classPath, JMSMerger.class.getCanonicalName(),
+                        "--mergerId", String.valueOf((i/2)+1),
+                        "--numClients", String.valueOf(amountOfNodes)
+
+
+                );
+                ///Deze workers zullen beginnen met getallen genereren en sorteren wanner .start() aangeroepen wordt
+                processes[i] = child.inheritIO().start();
+            }
+
+        }
+        return processes;
+    }
+
     public Process[] createWorkers(int amountOfNodes) throws IOException {
         Process[] processes = new Process[amountOfNodes];
 

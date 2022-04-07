@@ -1,4 +1,6 @@
+
 import javax.jms.*;
+import javax.jms.Queue;
 import java.io.Serializable;
 import java.util.*;
 
@@ -7,73 +9,128 @@ public class Worker implements JMSConnection{
 
 
     public static void main(String[] args) throws JMSException {
-
-        int workerId= 0;
+        int workerId = 0;
         int numClients = 4;
-        // process command line arguments, decide to assume master role or worker role
+        JMSFactory factory = new JMSFactory();
+        Connection connection = factory.startConnection(CONNECTION_URL);
+        Session session = factory.createSession(connection);
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals("--nodeId")) {
                 i++;
+                //Set workerid
                 workerId = Integer.parseInt(args[i]);
             } else if (args[i].equals("--numClients")) {
                 i++;
                 numClients = Integer.valueOf(args[i]);
             }
         }
+        MessageConsumer consumer= factory.createConsumerQueue(session, ("message-server-" + workerId));
 
 
+        // process command line arguments, decide to assume master role or worker role
+
+        //Genereer lijst met met CoinObjecten
+        List<Coin> unsortedElements = generateElements();
+        System.out.println("Sorting the elements will start");
+        //Start de timer, omdat het sorteren gaat beginnen vanaf heir
+        Timer.start();
+        //Sorteer de zojuist gegeneerde CoinObjecten
+        List<Coin> sortedElements = sortUnsortedElements(unsortedElements);
+        Timer.stop();
+        System.out.println("Worker(" + workerId + ")" + ": Sorting the elements is done");
+        System.out.println("I WOULD LIKE TO START MERGING");
+
+        notifyOfficer(session, factory, workerId);
+
+        MessageProducer coinProducer = null;
+        MessageConsumer coinConsumer = null;
+        Coin receivedCoin = null;
+
+        boolean isHeader = false;
+        //Wacht totdat de officer een reply stuurt
+        while(coinProducer == null) {
+            NodeMessage nodeMessage = (NodeMessage) ((ObjectMessage) consumer.receive()).getObject();
+            //Bepaal of node zich gaat focussen op de head of de tail
+            if(nodeMessage.getMessageType().equals("head")){
+                //Maak een producerQueue aan om Coin elementen te kunenn sturen naar de assignde queue
+                coinProducer = factory.createProducerQueue(session, nodeMessage.getMessage());
+                isHeader = true;
+            } else if(nodeMessage.getMessageType().equals("tail")){
+                coinProducer = factory.createProducerQueue(session, nodeMessage.getMessage());
+            }
+        }
+        //Verstuur de CoinObjecten via de messageProducer naar de queue
+        //Ontvang ook een bericht van de andere node en vergelijk.
+        while(sortedElements.size() > 0){
+            Coin headOrTail = isHeader ? giveHead(sortedElements) : giveTail(sortedElements);
+            coinProducer.send(session.createObjectMessage(headOrTail));
+            sortedElements.remove(headOrTail);
+        }
 
 
-        //Set workerid
-        List<Coin>  unsortedElements = generateElements();
+        //=============== MERGING ==============================
+        //Merge alles van Queue head0 met tail0 en head1 met tail1 etc.
+        if(workerId ==1) {
+            MessageConsumer consumerHead = factory.createConsumerQueue(session, "head0");
+            MessageConsumer consumerTail = factory.createConsumerQueue(session, "tail0");
+            List<Coin> tempHead = new ArrayList<>();
+            List<Coin> tempTail = new ArrayList<>();
+            while (tempHead.size() + tempTail.size() < 200) {
+                Coin receivedHead = (Coin) ((ObjectMessage) consumerHead.receive()).getObject();
+                Coin receivedTail = (Coin) ((ObjectMessage) consumerTail.receive()).getObject();
+                tempHead.add(receivedHead);
+                tempTail.add(receivedTail); //Already sorted????
+                if (receivedTail.compareTo(receivedHead) < 0) {
+                    tempTail.add(receivedHead);
+                } else {
+                    tempHead.add(receivedTail);
+                }
+                System.out.println(tempHead.size());
+                System.out.println(tempTail.size());
+            }
 
-            System.out.println("Sorting the elements will start");
-            Timer.start();
-        List<Coin> sortedElements =  sortUnsortedElements(unsortedElements);
-            Timer.stop();
-            System.out.println("Worker(" + workerId + ")" + ": Sorting the elements is done");
 
-        System.out.println(String.format("Worker {0} sends his hashmap to queue. ", workerId));
-        //Send to lomihi queue.
-
-        JMSFactory connectionsFactory = new JMSFactory();
-        Connection connection =connectionsFactory.startConnection(workerId, CONNECTION_URL);
-        //Session session = startSession(clientId, URL);
-        Session session = connectionsFactory.createSession(connection);
-        MessageProducer producer = connectionsFactory.createProducerQueue(workerId, session, "hilomid");
-//        ObjectMessage message = (ObjectMessage)createMapMessage(workerId, sortedElements, session);
+            System.out.println("All headers: ");
+            for (Coin c : tempHead) {
+                System.out.println(c.toString());
+            }
+            System.out.println("All tailers: ");
+            for (Coin c : tempTail) {
+                System.out.println(c.toString());
+            }
+        }
 
 
-        producer.send(createMapMessage(workerId, sortedElements, session));
-        System.out.println("Hashmap message should be sent. ");
-
-        //Worker subscribet op het Merger Topic wanneer deze zijn ongesorteerde lijst heeft gesorteerd.
-            //TODO topic.subscribe(topic)
-            //MessageListener op topic zetten.
-            //OnMessage(){ this.stage = Integer.parseInt(message);
-
-            //Stuur lo, mid, hi naar officer queue.
-            //TODO Worker maakt instances van Mergers. Deze zijn opgestart met javabin ding. Deze krijgen de sortedElements mee.
-            //TODO op dit moment weet Officer al lo, mid, hi van alle nodes.
-
-        //Wacht voor berichten van Officer die gaan over mergen en sorten.
-
-        MessageConsumer consumer = connectionsFactory.createConsumerQueue(8, session, "Hello2");
-
-       ObjectMessage receivedMessage = (ObjectMessage) consumer.receive();
-        System.out.println("Message is received: ");
-        Map<Integer, Map<String, Coin>> m =(Map) receivedMessage.getObject();
-        System.out.println(m);
-//        System.out.println(receivedMessage.getObject());
-        System.out.println("LOL: ");
-        System.out.println(m.get(12).get("lo"));
-        final long[] i = {0};
-        m.forEach((k, v) -> System.out.println("K: " + k + ", V: " + v));
-        connection.close();
     }
 
 
 
+//        //TODO modify that when sortedElements.size() < 0, send empty map.
+
+
+    private static void notifyOfficer(Session session, JMSFactory factory, int workerId) throws JMSException {
+        MessageProducer producer= factory.createProducerQueue(session, "officer");
+        producer.send(session.createObjectMessage(new NodeMessage("done_sorting", String.valueOf(workerId))));
+    }
+
+    private static Coin giveHead(List<Coin> sortedElements){
+        return sortedElements.get(0);
+    }
+     private static Coin giveTail(List<Coin> sortedElements){
+        return sortedElements.get(sortedElements.size()-1);
+    }
+
+
+    //Stuur de tail naar de queue
+    private static Coin giveHeadOrTail(List<Coin> sortedElements, String type){
+       Coin c = null;
+        if(type.equals("head")) {
+            c= giveHead(sortedElements);
+        }else if(type.equals("tail")){
+            c = giveTail(sortedElements);
+        }
+        return c;
+    }
 
     public static List<Coin> generateElements(){
         return new DataGenerator(AMOUNT_OF_ELEMENTS).generate();
