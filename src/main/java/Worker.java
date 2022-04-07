@@ -2,6 +2,7 @@
 import javax.jms.*;
 import javax.jms.Queue;
 import java.io.Serializable;
+import java.lang.reflect.Array;
 import java.util.*;
 
 
@@ -52,7 +53,7 @@ public class Worker implements JMSConnection{
             NodeMessage nodeMessage = (NodeMessage) ((ObjectMessage) consumer.receive()).getObject();
             //Bepaal of node zich gaat focussen op de head of de tail
             if(nodeMessage.getMessageType().equals("head")){
-                //Maak een producerQueue aan om Coin elementen te kunenn sturen naar de assignde queue
+                //Maak een producerQueue aan om Coin elementen te kunenn sturen naar de toegewezen queue
                 coinProducer = factory.createProducerQueue(session, nodeMessage.getMessage());
                 isHeader = true;
             } else if(nodeMessage.getMessageType().equals("tail")){
@@ -62,7 +63,7 @@ public class Worker implements JMSConnection{
         //Verstuur de CoinObjecten via de messageProducer naar de queue
         //Ontvang ook een bericht van de andere node en vergelijk.
         while(sortedElements.size() > 0){
-            Coin headOrTail = isHeader ? giveHead(sortedElements) : giveTail(sortedElements);
+            Coin headOrTail = giveHead(sortedElements); // isHeader ? giveHead(sortedElements) : giveTail(sortedElements);
             coinProducer.send(session.createObjectMessage(headOrTail));
             sortedElements.remove(headOrTail);
         }
@@ -70,26 +71,67 @@ public class Worker implements JMSConnection{
 
         //=============== MERGING ==============================
         //Merge alles van Queue head0 met tail0 en head1 met tail1 etc.
+        int i = 0;
         if(workerId ==1) {
+            System.out.println("HELLO I'M WORKERID 1");
+
+
             MessageConsumer consumerHead = factory.createConsumerQueue(session, "head0");
             MessageConsumer consumerTail = factory.createConsumerQueue(session, "tail0");
             List<Coin> tempHead = new ArrayList<>();
             List<Coin> tempTail = new ArrayList<>();
-            while (tempHead.size() + tempTail.size() < 200) {
-                Coin receivedHead = (Coin) ((ObjectMessage) consumerHead.receive()).getObject();
-                Coin receivedTail = (Coin) ((ObjectMessage) consumerTail.receive()).getObject();
-                tempHead.add(receivedHead);
-                tempTail.add(receivedTail); //Already sorted????
-                if (receivedTail.compareTo(receivedHead) < 0) {
-                    tempTail.add(receivedHead);
-                } else {
-                    tempHead.add(receivedTail);
+
+
+            Coin receivedHead = null;
+            Coin receivedTail = null;
+
+
+            int totalCoinsProcessed = 0;
+            int totalCoinsToProcess = 200; //Decreased the amount for testing purposes
+            int totalElementsInHead0Queue = getQueueSize(session, session.createQueue("head0"));
+            int totalElementsInTail0Queue = getQueueSize(session, session.createQueue("tail0"));
+            //Verwerk alle objecten in de queues
+            while (totalCoinsProcessed < totalCoinsToProcess ) {
+                System.out.println((tempHead.size() + tempTail.size()));
+
+                System.out.println("Tempead size: " + tempHead.size());
+                if(receivedHead == null && totalElementsInHead0Queue > 0){
+                    receivedHead = (Coin) ((ObjectMessage) consumerHead.receiveNoWait()).getObject();
+
                 }
-                System.out.println(tempHead.size());
-                System.out.println(tempTail.size());
+                System.out.println("Temptail size: " + tempTail.size());
+                if(receivedTail == null && totalElementsInTail0Queue > 0){
+                    receivedTail = (Coin) ((ObjectMessage) consumerTail.receiveNoWait()).getObject();
+                    System.out.println("JUST RECEIVED TAILER");
+                    System.out.println(receivedTail.toString());
+
+                }
+
+                //BUG: Op de een of andere manier blijft hij altijd zeggen dat elk 'receivedTail' kleiner is dan 'receivedHead'
+                if (receivedHead != null && receivedTail != null && (receivedTail.compareTo(receivedHead) < 0)) {
+                    tempTail.add(receivedHead);
+                    receivedHead = null;
+
+                } else if(receivedHead != null && receivedTail != null){
+                    tempHead.add(receivedTail);
+                    receivedTail = null;
+                }
+                totalCoinsProcessed++;
+                i++;
+
+                System.out.println("i " + i);
+                totalElementsInHead0Queue = getQueueSize(session, session.createQueue("head0"));;
+                totalElementsInTail0Queue = getQueueSize(session, session.createQueue("tail0"));;
+
+            }
+            //Sla het overgebleven element op in de juiste lijst.
+            if(receivedHead != null){
+                tempHead.add(0, receivedHead);
+            }else if( receivedTail != null){
+                tempTail.add(receivedTail);
             }
 
-
+            //Print resultaten.
             System.out.println("All headers: ");
             for (Coin c : tempHead) {
                 System.out.println(c.toString());
@@ -107,6 +149,20 @@ public class Worker implements JMSConnection{
 
 //        //TODO modify that when sortedElements.size() < 0, send empty map.
 
+    private static int getQueueSize(Session session, Queue queue) {
+        int count = 0;
+        try {
+            QueueBrowser browser = session.createBrowser(queue);
+            Enumeration elems = browser.getEnumeration();
+            while (elems.hasMoreElements()) {
+                elems.nextElement();
+                count++;
+            }
+        } catch (JMSException ex) {
+            ex.printStackTrace();
+        }
+        return count;
+    }
 
     private static void notifyOfficer(Session session, JMSFactory factory, int workerId) throws JMSException {
         MessageProducer producer= factory.createProducerQueue(session, "officer");
