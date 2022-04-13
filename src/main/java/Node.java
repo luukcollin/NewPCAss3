@@ -1,3 +1,6 @@
+import java.util.ArrayList;
+import java.util.List;
+
 public class Node {
     Coin c;
     Node prev, next;
@@ -10,17 +13,26 @@ public class Node {
 
     public void print(Node n){
         Node temp = n;
-        System.out.println("In print method");
         while(n != null){
-            System.out.println("Node: " + n.c.toString());
             temp = n;
             n = n.next;
         }
         while(temp != null){
-            System.out.println("Temp: " + temp.c.toString());
-            System.out.println("temp.prev = " + temp.prev);
             temp = temp.prev;
-            System.out.println("Temp is now temp .prev:  temp is: " + temp.c.toString());
         }
     }
+
+    //Het onthullen van een Node zijn stamboom wordt enkel gebruikt voor SortTest.java voor test purposes
+    public List<Coin> revealGenealogy(){
+        List<Coin> allCoinsInNodeList = new ArrayList<>();
+        Node temp = this;
+        while(temp != null){
+            allCoinsInNodeList.add(temp.c);
+            System.out.printf(temp.c.toString());
+            temp = temp.next;
+
+        }
+        return allCoinsInNodeList;
+    }
+
 }

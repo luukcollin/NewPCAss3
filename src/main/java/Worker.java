@@ -2,7 +2,6 @@
 import javax.jms.*;
 import javax.jms.Queue;
 import java.io.Serializable;
-import java.lang.reflect.Array;
 import java.util.*;
 
 
@@ -33,6 +32,26 @@ public class Worker implements JMSConnection{
 
 
         myCoinlist.printList();
+
+        //Sort the list
+        myCoinlist.sortList();
+
+        //Print the sorted list
+        System.out.println("Printing the sorted list...");
+        myCoinlist.printList();
+
+
+        System.out.println("The elment on the front is: ");
+        System.out.println(myCoinlist.giveHeadElementAndRemove().toString());
+
+        System.out.println("Element at the tail is: ");
+        System.out.println(myCoinlist.giveTailElementAndRemove().toString());
+
+
+        System.out.println("printing mutated sorted list: ");
+        myCoinlist.printList();
+
+        
 
         if(false) {
             int workerId = 0;
