@@ -13,11 +13,22 @@ public class Sort {
         if(unsorted.size() > 0) {
             mergesort(unsorted, 0, unsorted.size());
             List<Coin[]> sortedArray = smallerArrays;
-            return new ArrayList<Coin>(Arrays.asList(sortedArray.get(smallerArrays.size() - 1)));
+            return new ArrayList<>(Arrays.asList(sortedArray.get(smallerArrays.size() - 1)));
         }
         return unsorted;
     }
 
+    //Return is a Node is sorted
+    public boolean isSorted(Node coin){
+        Node temp = coin;
+        while(temp.next != null && temp.c.compareTo(temp.next.c) < 0){
+            temp = temp.next;
+            if(temp.next.next == null){
+                return true;
+            }
+        }
+        return false;
+    }
 
     /**
      * Simple recursive mergesort algorithm that I found on https://www.programmersought.com/article/93992485097/

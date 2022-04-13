@@ -62,6 +62,73 @@ public class LinkedListTest {
         List<Coin> mergedList = merged.revealGenealogy();
         Assertions.assertEquals(EXPECTED, mergedList);
 
+        //Testing additional sorting method for a node as additional check
+        Assertions.assertTrue(new Sort().isSorted(merged));
+    }
+    @Test
+    public void deleteTail(){
+
+//        new Sort().isSorted(head);
+    }
+
+    @Test
+    public void emptyList(){
+        LinkedList emptylist = new LinkedList();
+
+        Assertions.assertEquals(null, emptylist.giveHeadElement());
+        Assertions.assertEquals(null, emptylist.giveTailElement());
+    }
+
+    @Test
+    public void returnHeadWhenTailIsEmpty(){
+        LinkedList singleElementList = new LinkedList();
+        singleElementList.addHead(coinObject1);
+
+        Assertions.assertEquals(coinObject1, singleElementList.giveTailElement().c);
+        Assertions.assertEquals(coinObject1, singleElementList.giveTailElementAndRemove());
+        Assertions.assertNull(singleElementList.giveTailElementAndRemove());
+    }
+
+    @Test
+    public void returnHeadWhenTailWasAddedAsOnlyElement(){
+        LinkedList singleElementList = new LinkedList();
+        singleElementList.addHead(coinObject1);
+
+        Assertions.assertEquals(coinObject1, singleElementList.giveHeadElementAndRemove());
+        Assertions.assertNull(singleElementList.giveHeadElementAndRemove());
+
+
 
     }
+
+    @Test
+    public void insertTest(){
+        LinkedList coinList = new LinkedList();
+        for(Coin c : COMPLETELY_SORTED_AND_MERGED){
+            coinList.addTail(c);
+        }
+
+        Assertions.assertEquals(COMPLETELY_SORTED_AND_MERGED.get(0), coinList.giveHeadElement().c);
+        Assertions.assertEquals(COMPLETELY_SORTED_AND_MERGED.get(COMPLETELY_SORTED_AND_MERGED.size()-1), coinList.giveTailElement().c);
+
+        Coin newHead = new Coin(1111111.5412165, 100, 156700.30, new GregorianCalendar(2022, Calendar.FEBRUARY, 5), 77);
+        Coin newTail = new Coin(9999999.5412165, 500, 80087612.30, new GregorianCalendar(2022, Calendar.MARCH, 12), 99);
+        coinList.addHead(newHead);
+        coinList.addTail(newTail);
+
+        Assertions.assertEquals(coinList.giveHeadElement().c, newHead);
+        Assertions.assertEquals(coinList.giveTailElement().c, newTail);
+    }
+
+    @Test
+    public void addFirstNode(){
+        //Check for addHead errors (f.e. NullPointer) on first Node in list
+        LinkedList newList =  new LinkedList();
+        newList.addHead(coinObject1);
+
+        //Check for addTail errors on first Node in list
+        LinkedList newList2 =  new LinkedList();
+        newList2.addTail(coinObject1);
+    }
+
 }

@@ -13,6 +13,9 @@ public class LinkedList {
 
     //Voeg een node toe aan het einde van de lijst
     public void addTail(Coin c){
+        if(head == null){
+            head = new Node(c);
+        }
         Node newNode = new Node(c);
         Node current = head;
         while(current.next != null){
@@ -90,11 +93,22 @@ public class LinkedList {
 
     public Coin giveHeadElementAndRemove(){
         Node temp = head;
+        if(head == null){
+            return null;
+        }
         head = head.next;
         return temp.c;
+
     }
+
     public Coin giveTailElementAndRemove()
     {
+        //elements contains only one element
+        if(head != null && head.next == null){
+            Node temp = head;
+            head = null;
+            return temp.c;
+        }
         if (head == null)
             return null;
 
@@ -117,9 +131,14 @@ public class LinkedList {
 
 
     public Node giveTailElement(){
+        if(head == null){
+            return null;
+        }
         Node temp = head;
-        while(temp.next != null){
-            temp = temp.next;
+        if(temp.next != null) {
+            while (temp.next != null) {
+                temp = temp.next;
+            }
         }
         return temp;
     }

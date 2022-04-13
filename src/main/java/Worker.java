@@ -51,7 +51,18 @@ public class Worker implements JMSConnection{
         System.out.println("printing mutated sorted list: ");
         myCoinlist.printList();
 
-        
+        JMSFactory jmsFactory = new JMSFactory();
+        Connection connection2 = jmsFactory.startConnection(CONNECTION_URL);
+        Session session2 = jmsFactory.createSession(connection2);
+
+        MessageProducer producer = jmsFactory.createProducerQueue(session2, "head0");
+
+
+        while(myCoinlist.giveHeadElement() != null){
+
+        }
+        Coin head = myCoinlist.giveTailElementAndRemove();
+        producer.send(session2.createObjectMessage(head));
 
         if(false) {
             int workerId = 0;
