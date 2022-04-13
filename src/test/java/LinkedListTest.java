@@ -84,9 +84,13 @@ public class LinkedListTest {
         LinkedList singleElementList = new LinkedList();
         singleElementList.addHead(coinObject1);
 
+        //Calls on empty list
+        //Assert 'null' as return and be free of any Nullpointer exceptions
         Assertions.assertEquals(coinObject1, singleElementList.giveTailElement().c);
         Assertions.assertEquals(coinObject1, singleElementList.giveTailElementAndRemove());
+        Assertions.assertNull(singleElementList.giveTailElement());
         Assertions.assertNull(singleElementList.giveTailElementAndRemove());
+
     }
 
     @Test
@@ -95,6 +99,10 @@ public class LinkedListTest {
         singleElementList.addHead(coinObject1);
 
         Assertions.assertEquals(coinObject1, singleElementList.giveHeadElementAndRemove());
+
+        //Calls on empty list
+        //Assert 'null' as return and be free of any Nullpointer exceptions
+        Assertions.assertNull(singleElementList.giveHeadElement());
         Assertions.assertNull(singleElementList.giveHeadElementAndRemove());
 
 
