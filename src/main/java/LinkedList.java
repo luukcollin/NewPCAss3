@@ -15,7 +15,8 @@ public class LinkedList {
     public void addTail(Coin c){
         if(head == null){
             head = new Node(c);
-        }
+        }else{
+
         Node newNode = new Node(c);
         Node current = head;
         while(current.next != null){
@@ -23,6 +24,8 @@ public class LinkedList {
         }
         current.next = newNode;
     }
+    }
+
 
     //Print de lijst
     public void printList(){

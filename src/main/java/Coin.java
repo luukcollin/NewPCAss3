@@ -4,14 +4,13 @@ import java.util.GregorianCalendar;
 
 public class Coin implements Comparable<Coin>, Serializable {
 
-    private double marketCap;
-    private double price;
-    private double dailyVolume;
-    private GregorianCalendar launchedAt;
-    private int id;
+    private final double marketCap;
+    private final double price;
+    private final double dailyVolume;
+    private final GregorianCalendar launchedAt;
+    private final int id;
 
     public Coin(double marketCap, double price, double dailyVolume, GregorianCalendar launchedAt, int id){
-
         this.marketCap = marketCap;
         this.price = price;
         this.dailyVolume = dailyVolume;
@@ -19,19 +18,15 @@ public class Coin implements Comparable<Coin>, Serializable {
         this.id = id;
     }
 
-    public double getCapValue(){
-        return marketCap;
-    }
-
-
     @Override
     public int compareTo(Coin o) {
-        return Comparator.comparing((Coin c) -> c.price).thenComparing(c -> c.marketCap ).thenComparing(c -> c.id).compare(this, o);
+        return Comparator.comparing((Coin c) -> c.price).thenComparing(c -> c.marketCap ).thenComparing(c -> c.id)
+                .thenComparing(c -> c.launchedAt).compare(this, o);
     }
 
     @Override
     public String toString(){
-        return "( Price: €" + price + ", Coin ID: " + id +  ", Marketcap: " + marketCap + ", Daily Volume: €" + dailyVolume +   ")\n";
+        return "( Coin ID " + id +  " - Price €" + price + " - Marketcap "+  + marketCap + " - Daily Volume €" + dailyVolume +   ")\n";
     }
 
 

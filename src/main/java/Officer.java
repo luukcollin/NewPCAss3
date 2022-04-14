@@ -1,12 +1,12 @@
 
 
-import org.apache.activemq.transport.amqp.message.AutoOutboundTransformer;
+import org.apache.activemq.ActiveMQConnection;
+import org.apache.activemq.ActiveMQConnectionFactory;
 
 import javax.jms.*;
-import javax.jms.Queue;
+import java.sql.SQLOutput;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class Officer implements JMSConnection{
     private static List<Integer> priorityQueue;
@@ -20,58 +20,80 @@ public class Officer implements JMSConnection{
 
         JMSFactory factory = new JMSFactory();
 
-        Connection connection = factory.startConnection( JMSConnection.CONNECTION_URL);
+        Connection connection = factory.startConnection( CONNECTION_URL);
         Session session = factory.createSession(connection);
+        Topic officerTopic = factory.createTopic(session, "officerTopic");
+
+        /*
+        //Maak een topic aan waar Workers berichten naar kunnen toe sturen
+
+        ActiveMQConnectionFactory topicConnection = new ActiveMQConnectionFactory(CONNECTION_URL);
+        TopicSession officerSession = topicConnection.createTopicConnection().createTopicSession(true, 0);
+        TopicSubscriber subscriber = officerSession.createSubscriber(officerTopic);
+*/
+
+        MessageConsumer topicConsumer = session.createConsumer(officerTopic);
+        ConsumerMessageListener messageListener = new ConsumerMessageListener();
+        topicConsumer.setMessageListener(messageListener);
+
+        System.out.println("Waiting for workers to be done with sorting their own list");
+        boolean temp = false;
+        while(!temp){
+            temp = messageListener.allWorkersHaveTheirOwnListSorted();
+            System.out.println(messageListener.allWorkersHaveTheirOwnListSorted());
+        }
+
+        System.out.println("All workers are done with sorting their own list.");
+
+        WorkerCommunication communications = new WorkerCommunication(AMOUNT_OF_WORKERS);
+        for(String queue : communications.createMergedQueues()){
+
+        }
 
 
-
-        MessageProducer[] messageProducers = new MessageProducer[AMOUNT_OF_NODES];
-        for(int nodeId = 1; nodeId <= AMOUNT_OF_NODES;nodeId++){
-            messageProducers[nodeId-1] = startNodeMessageServer(nodeId, factory);
-            if(nodeId < (AMOUNT_OF_NODES/2)+1){
-                sendHeadAndTailConfigToNode(nodeId,messageProducers[nodeId-1], session);
-            }
 
             //TODO: Zet de HIGH op de HEAD
             //TODO: Zet de LOW op de Tail
             //TODO: haal de HIGH uit de sortedMap, evenals de LOW
 
-        }
+
 
 
         MessageConsumer consumer = factory.createConsumerQueue(session, "officer");
+
+
 
         boolean allWorkersAreDoneWithSorting = false;
         List<Integer> nodesThatAreDoneWithSorting = new ArrayList<>();
         int amountOfNodesThatAreDoneWithSorting = 0;
         int mergerQueueIndex = 0;
-        while(amountOfNodesThatAreDoneWithSorting < AMOUNT_OF_NODES){
+        while(amountOfNodesThatAreDoneWithSorting < AMOUNT_OF_WORKERS){
             System.out.println("wachten op nodes die klaar zijn met sorteren");
-            NodeMessage nodeMessage = (NodeMessage) ((ObjectMessage) consumer.receive()).getObject();
-            if(nodeMessage.getMessageType().equals("done_sorting")){
-                nodesThatAreDoneWithSorting.add(Integer.parseInt(nodeMessage.getMessage()));
+            WorkerTextMessage workerTextMessage = (WorkerTextMessage) ((ObjectMessage) consumer.receive()).getObject();
+            if(workerTextMessage.getMessageType().equals("done_sorting")){
+                nodesThatAreDoneWithSorting.add(Integer.parseInt(workerTextMessage.getMessage()));
                 amountOfNodesThatAreDoneWithSorting++;
             }
-
-
-            //Check of er meer dan 1 worker klaar is met sorteren
-            if(nodesThatAreDoneWithSorting.size() > 1){
-                //Geef een queue aan de workers waar ze op kunnen mergen
-                sendMergeMessage(messageProducers[nodesThatAreDoneWithSorting.get(0)-1]
-                        , session, mergerQueueIndex, "head");
-
-                sendMergeMessage( messageProducers[nodesThatAreDoneWithSorting.get(1)-1]
-                        , session, mergerQueueIndex, "tail");
-                //verhoog de mergerqueueindex
-                mergerQueueIndex++;
-                //Verwijder de workers die klaar zijn uit de lijst, omdat ze nu weer een taak hebben
-                nodesThatAreDoneWithSorting.remove(nodesThatAreDoneWithSorting.get(0));
-                nodesThatAreDoneWithSorting.remove(nodesThatAreDoneWithSorting.get(0));
-
-                System.out.println("Just assigned merger task too workers");
-            }
-
         }
+
+//            //Check of er meer dan 1 worker klaar is met sorteren
+//            if(nodesThatAreDoneWithSorting.size() > 1){
+//                //Geef een queue aan de workers waar ze op kunnen mergen
+//                sendMergeMessage(messageProducers[nodesThatAreDoneWithSorting.get(0)-1]
+//                        , session, mergerQueueIndex, "head");
+//
+//                sendMergeMessage( messageProducers[nodesThatAreDoneWithSorting.get(1)-1]
+//                        , session, mergerQueueIndex, "tail");
+//                //verhoog de mergerqueueindex
+//                mergerQueueIndex++;
+//                //Verwijder de workers die klaar zijn uit de lijst, omdat ze nu weer een taak hebben
+//                nodesThatAreDoneWithSorting.remove(nodesThatAreDoneWithSorting.get(0));
+//                nodesThatAreDoneWithSorting.remove(nodesThatAreDoneWithSorting.get(0));
+//
+//                System.out.println("Just assigned merger task too workers");
+//            }
+
+
 
 
 
@@ -153,26 +175,26 @@ public class Officer implements JMSConnection{
 
 
     }
-    //Vertel tegen de workers waar ze hun gemergde elementen gaan opslaan
-    private static void sendMergeMessage(MessageProducer producer, Session session, int mergerQueueId, String headOrTail) throws JMSException {
-        ObjectMessage message = session.createObjectMessage();
-        //determine if the node will do head sorting or tail sorting
+//    //Vertel tegen de workers waar ze hun gemergde elementen gaan opslaan
+//    private static void sendMergeMessage(MessageProducer producer, Session session, int mergerQueueId, String headOrTail) throws JMSException {
+//        ObjectMessage message = session.createObjectMessage();
+//        //determine if the node will do head sorting or tail sorting
+//
+//
+//        WorkerCommunication configMessage = new WorkerTextMessage(Message(headOrTail,headOrTail+mergerQueueId);
+//        message.setObject(configMessage);
+//        producer.send(message);
+//    }
 
-
-        NodeMessage configMessage = new NodeMessage(headOrTail,headOrTail+mergerQueueId);
-        message.setObject(configMessage);
-        producer.send(message);
-    }
-
-    private static void sendHeadAndTailConfigToNode(Integer originNodeId, MessageProducer producer, Session session) throws JMSException {
-        ObjectMessage message = session.createObjectMessage();
-        //determine if the node will do head sorting or tail sorting
-        boolean isHeader = originNodeId % 2 == 0;
-
-        NodeMessage configMessage = new NodeMessage("destination", "merged"+originNodeId);
-        message.setObject(configMessage);
-        producer.send(message);
-    }
+//    private static void sendHeadAndTailConfigToNode(Integer originNodeId, MessageProducer producer, Session session) throws JMSException {
+//        ObjectMessage message = session.createObjectMessage();
+//        //determine if the node will do head sorting or tail sorting
+//        boolean isHeader = originNodeId % 2 == 0;
+//
+//        WorkerCommunication configMessage = new WorkerCommunication("destination", "merged"+originNodeId, AMOUNT_OF_WORKERS);
+//        message.setObject(configMessage);
+//        producer.send(message);
+//    }
 
     private static void addToCorrespondingMap(int nodeId,String range, Coin coin){
         if(range.equals("lo")){

@@ -65,7 +65,7 @@ public class Master {
 
         ProcessBuilder child = new ProcessBuilder(
                 javaBin, "-classpath", classPath, Worker.class.getCanonicalName(),
-                "--nodeId", String.valueOf(i+1),
+                "--workerId", String.valueOf(i+1),
                 "--numClients", String.valueOf(amountOfNodes)
 
 
