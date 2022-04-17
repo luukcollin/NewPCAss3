@@ -3,6 +3,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+
 public class LinkedListTest {
     private static final Coin coinObject1 = new Coin(45984.5412165, 100, 58331.30, new GregorianCalendar(2022, Calendar.FEBRUARY, 12), 1);
     private static final Coin coinObject2 = new Coin(294178.08074959525, 50, 58331.30, new GregorianCalendar(2022, Calendar.FEBRUARY, 12), 2);
@@ -63,6 +64,39 @@ public class LinkedListTest {
         //Testing additional sorting method for a node as additional check
         Assertions.assertTrue(new Sort().isSorted(merged));
     }
+
+    @Test
+    public void insertSorted(){
+        //Twee coinobjecten die allebei net niet de hoogste 'price'. Bij het inserten zouden deze dus op de een na laatste
+        //index geplaatst worden en coinObjectX op de index daarvoor.
+        Coin coinObjectX = new Coin(1000.000000, 400, 58331.30, new GregorianCalendar(2022, Calendar.FEBRUARY, 12), 11);
+        Coin coinObjectY = new Coin(1000.000000, 420, 58331.30, new GregorianCalendar(2022, Calendar.FEBRUARY, 12), 12);
+
+        LinkedList coinList = new LinkedList();
+        for(Coin c : COMPLETELY_SORTED_AND_MERGED){
+            coinList.addTail(c);
+        }
+
+        Assertions.assertEquals(COMPLETELY_SORTED_AND_MERGED.get(0), coinList.giveHeadElement().c);
+        Assertions.assertEquals(COMPLETELY_SORTED_AND_MERGED.get(COMPLETELY_SORTED_AND_MERGED.size()-1), coinList.giveTailElement().c);
+
+        coinList.insert(coinObjectX);
+        coinList.insert(coinObjectY);
+        coinList.printList();
+
+        Assertions.assertEquals(coinList.giveHeadElement().c, coinObject6);
+        Assertions.assertEquals(coinList.giveTailElement().c, coinObject3);
+
+        List<Coin> EXPECTED = new ArrayList<>(
+                Arrays.asList(coinObject6, coinObject2, coinObject1, coinObject9, coinObject8, coinObject10, coinObject4,
+                        coinObject5, coinObject7, coinObjectX, coinObjectY, coinObject3));
+        List<Coin> result = new ArrayList<>();
+        while(coinList.giveHeadElement() != null){
+            result.add(coinList.giveHeadElementAndRemove());
+        }
+        Assertions.assertEquals(EXPECTED, result);
+    }
+
     @Test
     public void deleteTail(){
         List<Coin> unsortedList1 = new ArrayList<>(Arrays.asList(coinObject1, coinObject2, coinObject3, coinObject4, coinObject5));

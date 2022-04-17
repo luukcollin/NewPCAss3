@@ -29,6 +29,7 @@ public class Worker implements JMSConnection{
         }
         //Sorteer de lijst d.m.v. een recursief Merge Sort algoritme
         myCoinlist.sortList();
+myCoinlist.printList();
 
         //Zet de connectie op met JMS
         JMSFactory jmsFactory = new JMSFactory();
@@ -41,22 +42,74 @@ public class Worker implements JMSConnection{
         topicProducer.send(session.createObjectMessage(new WorkerTextMessage("done_sorting", "worker"+workerId)));
 
         //Elke worker is een producer omdat hij zijn eigen data heeft die verzonden moet worden naar andere workers
-        //Deze data bestaat uit uit TextMessages, maar ook uit ObjectMessages waar Coin objecten in staan
-        MessageProducer producer = jmsFactory.createProducerQueue(session, "head0");
-        producer.send(session.createObjectMessage(myCoinlist.giveHeadElementAndRemove()));
+        //Deze data bestaat uit TextMessages, maar ook uit ObjectMessages waar Coin objecten in staan
+//        MessageProducer producer = jmsFactory.createProducerQueue(session, "head0");
+//        producer.send(session.createObjectMessage(myCoinlist.giveHeadElementAndRemove()));
+
+        LinkedList receivedCoins = new LinkedList();
 
         boolean done = false;
+        boolean leftWorker =  workerId % 2 == 0; //Workers met een even workerId zijn leftworkers
+        System.out.println(workerId);
+        MessageProducer messageProducer;
+        MessageConsumer messageConsumer;
+        if(leftWorker){
+            messageProducer = jmsFactory.createProducerQueue(session, "tail0");
+            messageConsumer = jmsFactory.createConsumerQueue(session, "head0");
+        }else{
+            messageProducer = jmsFactory.createProducerQueue(session, "head0");
+            messageConsumer = jmsFactory.createConsumerQueue(session, "tail0");
+        }
+        Coin receivedCoin = null;
         while(!done){
             if(leftWorker){
+                Coin savedTail = myCoinlist.giveTailElement().c;
+
+                //Stuur de grootste Coin van mijn eigen gesorteerde lijst weg
+//                MessageProducer producer1 = jmsFactory.createProducerQueue(session, "tail0");
+                messageProducer.send(session.createObjectMessage(myCoinlist.giveTailElementAndRemove()));
+
+                //Ontvang van een andere worker zijn laagste Coin
+//                MessageConsumer consumer1 = jmsFactory.createConsumerQueue(session, "head0");
+                System.out.println(workerId +  ") Gonna wait for coins");
+                receivedCoin= (Coin) ((ObjectMessage) messageConsumer.receive()).getObject();
+                System.out.println(workerId +  ")Just received coins");
                 //send grootste getallen naar successor.
                 //ontvang kleinste getallen van succesor.
+
+
+
             }else{
-                //worker %2 == 0; Even getal, kleinste getallen weg sturen naar predecessor. Wilt graag grootste
+                Coin savedHead = myCoinlist.giveHeadElement().c;
+                //Stuur de laagste Coin van mijn eigen gesorteerde lijst weg
+//                MessageProducer producer1 = jmsFactory.createProducerQueue(session, "head0");
+                messageProducer.send(session.createObjectMessage(myCoinlist.giveHeadElementAndRemove()));
+
+                //Ontvang van een andere worker zijn laagste Coin
+//                MessageConsumer consumer1 = jmsFactory.createConsumerQueue(session, "tail0");
+                System.out.println(workerId +  ")Gonna wait for coins");
+                receivedCoin = (Coin) ((ObjectMessage) messageConsumer.receive()).getObject();
+                System.out.println(workerId +  ")Just received coins");
+                //Kleinste getallen weg sturen naar predecessor. Wilt graag grootste
                 //ontvang grootste getallen van predessor
+
+
             }
-//           done = processExchangedValues()
+            System.out.println(workerId + ") Coinlist size: " + myCoinlist.size());
+
+
+            done = processExchangedValues(receivedCoin, myCoinlist, leftWorker);
 
         }
+        if(leftWorker){
+            messageProducer.send(session.createObjectMessage(myCoinlist.giveTailElementAndRemove()));
+            myCoinlist.addTail((Coin)((ObjectMessage)messageConsumer.receive()).getObject());
+        }else{
+            messageProducer.send(session.createObjectMessage(myCoinlist.giveHeadElementAndRemove()));
+            myCoinlist.addHead((Coin)((ObjectMessage)messageConsumer.receive()).getObject());
+        }
+        myCoinlist.printList();
+        System.out.println("DONE WITH SORTING BOOOYAAHH!");
         //Daarnaast zou het mooi zijn als dezelfde worker berichten kan consumeren van andere Workers,zodat deze samen
         //Head/Tail kunnen mergen.
         while(myCoinlist.giveHeadElement() != null) {
@@ -93,6 +146,50 @@ public class Worker implements JMSConnection{
             ex.printStackTrace();
         }
         return count;
+    }
+
+    /**
+     *
+     * NODE A; 2 3 5 6 7 12
+     * NODE B: 1 4 8 9 10 11
+     *
+     *
+     * 1st round: A[12] --> B[1]   A: 1 2 3 5 6 7    B: 4 8 9 10 11 12
+     * 2nd round: A[7] --> B[4]    A: 1 2 3 4 5 6    B: 7 8 9 10 11 12
+     * 3rd round: A[6] --> B[8] //Zal niet accepteren omdat
+     *
+     * expected A: 1 2 3 4 5 6
+     * expected B: 7 8 9 10 11 12
+     *
+     */
+
+
+    private static boolean processExchangedValues(Coin receivedCoin,LinkedList myList, boolean isLeftWorker){
+
+        System.out.println(isLeftWorker +  ", Coin given: "+ receivedCoin.toString());
+        if(isLeftWorker){
+            if( myList.giveTailElement().c.compareTo(receivedCoin) < 0) {
+                //Betekent dat de ontvangen Coin niet thuis hoort in deze lijst. Stuur de Coin terug naar de sender
+                myList.addTail(receivedCoin); //Om variabelen te besparen voegen we de coin toe aan de Tail. Dit element zal
+                //direct uit de lijst gehaald worden als processExchanged() true returned. Dit betekent namelijk ten alle tijde
+                //dat het hoogste elemement van mijn eigen lijst lager is dan het laagste elmeent in een andere lijst
+                return true; //Lijst is gesorteerd
+            }
+            myList.insert(receivedCoin); //ontvangen head //TODO change to insertHead
+
+        }else{
+            if(myList.giveHeadElement().c.compareTo(receivedCoin) > 0){
+                //Betekent dat de ontvangen Coin niet thuis hoort in deze lijst. Stuur de Coin terug naar de sender
+                myList.addHead(receivedCoin); //Om variabelen te besparen voegen we de coin toe aan de head. Dit element zal
+                //direct uit de lijst gehaald worden als processExchanged() true returned. Dit betekent namelijk ten alle tijde
+                //dat het laagste elemement van mijn eigen lijst al hoger is dan het hoogste elmeent in een andere lijst
+                return true; //Lijst is gesorteerd;
+            }
+            myList.insert(receivedCoin); //ontvangen tail //TODO change to insertTail
+
+        }
+        return false;
+
     }
 
     public static List<Coin> generateCoinObjects(){

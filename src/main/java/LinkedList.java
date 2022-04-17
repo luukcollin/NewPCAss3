@@ -1,43 +1,64 @@
 public class LinkedList {
     Node head;
 
-    public LinkedList(){
+    public LinkedList() {
 
     }
+
     //Voeg een node toe aan de voorkant van de lijst
-    public void addHead(Coin c){
+    public void addHead(Coin c) {
         Node newNode = new Node(c);
         newNode.next = head;
         head = newNode;
+
     }
 
     //Voeg een node toe aan het einde van de lijst
-    public void addTail(Coin c){
-        if(head == null){
+    public void addTail(Coin c) {
+        if (head == null) {
             head = new Node(c);
-        }else{
+        } else {
 
-        Node newNode = new Node(c);
-        Node current = head;
-        while(current.next != null){
-            current = current.next;
+            Node newNode = new Node(c);
+            Node current = head;
+            while (current.next != null) {
+                current = current.next;
+            }
+            current.next = newNode;
+
         }
-        current.next = newNode;
-    }
     }
 
+    public int size() {
+        int count = 0;
+        Node current = head;
+        while (current != null) {
+            current = current.next;
+            count++;
+        }
+        return count;
+    }
 
     //Print de lijst
-    public void printList(){
-        Node current = head;
-        while(current != null){
-            System.out.println(current.c.toString());
-            current = current.next;
-        }
+    public void printList() {
+        System.out.println(createFormattedOutput(head));
     }
 
+    public String createFormattedOutput(Node n) {
+        String output = "";
+        Node current = head;
+        int count = 0;
+        while (current != null) {
+            output += current.c.toString() + "\n";
+            current = current.next;
+            count++;
+        }
+        return count + " elements in list:\n" + output;
+    }
+
+
     //Return sorted list
-    public void sortList(){
+    public void sortList() {
         head = mergeSort(head);
     }
 
@@ -94,22 +115,23 @@ public class LinkedList {
         }
     }
 
-    public Coin giveHeadElementAndRemove(){
+    public Coin giveHeadElementAndRemove() {
         Node temp = head;
-        if(head == null){
+        if (head == null) {
             return null;
         }
         head = head.next;
+
         return temp.c;
 
     }
 
-    public Coin giveTailElementAndRemove()
-    {
+    public Coin giveTailElementAndRemove() {
         //elements contains only one element
-        if(head != null && head.next == null){
+        if (head != null && head.next == null) {
             Node temp = head;
             head = null;
+
             return temp.c;
         }
         if (head == null)
@@ -132,13 +154,12 @@ public class LinkedList {
         return tempTailElement.c;
     }
 
-
-    public Node giveTailElement(){
-        if(head == null){
+    public Node giveTailElement() {
+        if (head == null) {
             return null;
         }
         Node temp = head;
-        if(temp.next != null) {
+        if (temp.next != null) {
             while (temp.next != null) {
                 temp = temp.next;
             }
@@ -146,12 +167,25 @@ public class LinkedList {
         return temp;
     }
 
-    public Node giveHeadElement(){
+    public Node giveHeadElement() {
         return head;
     }
 
+    public void insert(Coin newCoin) {
+        Node newNode = new Node(newCoin);
+        Node current;
 
+        if (head == null || head.c.compareTo(newCoin) > 0) {
+            newNode.next = head;
+            head = newNode;
+        } else {
+            current = head;
+            while (current.next != null && current.next.c.compareTo(newCoin) < 0) {
+                current = current.next;
+            }
+            newNode.next = current.next;
+            current.next = newNode;
+        }
 
-
-
+    }
 }

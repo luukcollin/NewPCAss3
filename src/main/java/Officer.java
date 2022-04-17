@@ -32,16 +32,7 @@ public class Officer implements JMSConnection{
         TopicSubscriber subscriber = officerSession.createSubscriber(officerTopic);
 */
 
-        MessageConsumer topicConsumer = session.createConsumer(officerTopic);
-        ConsumerMessageListener messageListener = new ConsumerMessageListener();
-        topicConsumer.setMessageListener(messageListener);
 
-        System.out.println("Waiting for workers to be done with sorting their own list");
-        boolean temp = false;
-        while(!temp){
-            temp = messageListener.allWorkersHaveTheirOwnListSorted();
-            System.out.println(messageListener.allWorkersHaveTheirOwnListSorted());
-        }
 
         System.out.println("All workers are done with sorting their own list.");
 
@@ -63,10 +54,10 @@ public class Officer implements JMSConnection{
 
 
 
-        boolean allWorkersAreDoneWithSorting = false;
+
         List<Integer> nodesThatAreDoneWithSorting = new ArrayList<>();
         int amountOfNodesThatAreDoneWithSorting = 0;
-        int mergerQueueIndex = 0;
+
         while(amountOfNodesThatAreDoneWithSorting < AMOUNT_OF_WORKERS){
             System.out.println("wachten op nodes die klaar zijn met sorteren");
             WorkerTextMessage workerTextMessage = (WorkerTextMessage) ((ObjectMessage) consumer.receive()).getObject();
