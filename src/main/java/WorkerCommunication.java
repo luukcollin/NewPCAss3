@@ -29,9 +29,11 @@ public class WorkerCommunication implements Serializable {
      * @return de namen van de queues waar elementen samengevoegd worden door meerdere nodes
      */
     public String[] createMergedQueues(){
-            String[] queueNames = new String[amountOfWorkers];
-            int amountOfQueuesNeeded = (int)Math.ceil(Math.log(amountOfWorkers) / Math.log(2));
-            for(int i = 0; i < amountOfQueuesNeeded; i++){
+        int amountOfQueuesNeeded = (int)Math.ceil(Math.log(amountOfWorkers) / Math.log(2)) +1;
+            String[] queueNames = new String[amountOfQueuesNeeded];
+
+            queueNames[0] = "merged-Alpha";
+            for(int i = 1; i < amountOfQueuesNeeded; i++){
                 queueNames[i] = "merged-" + i;
             }
             return queueNames;

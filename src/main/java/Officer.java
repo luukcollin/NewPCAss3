@@ -58,14 +58,22 @@ public class Officer implements JMSConnection{
         List<Integer> nodesThatAreDoneWithSorting = new ArrayList<>();
         int amountOfNodesThatAreDoneWithSorting = 0;
 
-        while(amountOfNodesThatAreDoneWithSorting < AMOUNT_OF_WORKERS){
-            System.out.println("wachten op nodes die klaar zijn met sorteren");
+        ArrayList<Integer> nodesThatAreDoneWithMerging = new ArrayList<Integer>();
+        while(nodesThatAreDoneWithMerging.size() < AMOUNT_OF_WORKERS){
+            System.out.println("wachten op nodes die klaar zijn met mergen");
             WorkerTextMessage workerTextMessage = (WorkerTextMessage) ((ObjectMessage) consumer.receive()).getObject();
-            if(workerTextMessage.getMessageType().equals("done_sorting")){
-                nodesThatAreDoneWithSorting.add(Integer.parseInt(workerTextMessage.getMessage()));
-                amountOfNodesThatAreDoneWithSorting++;
+            if(workerTextMessage.getMessageType().equals("done_merging")){
+                nodesThatAreDoneWithMerging.add(Integer.parseInt(workerTextMessage.getMessage()));
             }
         }
+        System.out.println("Officer konws everyone is done with merging.");
+        WorkerCommunication workerCommunication = new WorkerCommunication(AMOUNT_OF_WORKERS);
+        String[] mergedQueues = workerCommunication.createMergedQueues();
+        if(AMOUNT_OF_WORKERS <= 2){ //Special case waarbij de hele lijst gesorteerd is na 1 keer mergen
+            MessageProducer communicator = startNodeMessageServer(nodesThatAreDoneWithMerging.get(0), factory);
+            communicator.send(session.createObjectMessage(new WorkerTextMessage("queue_name", mergedQueues[0])));
+        }
+
 
 //            //Check of er meer dan 1 worker klaar is met sorteren
 //            if(nodesThatAreDoneWithSorting.size() > 1){
@@ -149,14 +157,7 @@ public class Officer implements JMSConnection{
 
 
 
-    private static Map<Integer, Coin> sortCoinMap(Map<Integer, Coin> unsortedMap){
-        Comparator<Coin> compareByPriceAndMore = Comparator.naturalOrder();
-        return unsortedMap.entrySet().stream().sorted(Map.Entry.comparingByValue(compareByPriceAndMore)).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (oldValue, newValue) -> oldValue, LinkedHashMap::new));
-    }
 
-    private static <Integer,Coin> Integer getKey(Map<Integer, Coin> map, Coin value){
-        return map.entrySet().stream().filter(entry -> value.equals(entry.getValue())).findFirst().map(Map.Entry::getKey).orElse(null);
-    }
 
     private static MessageProducer startNodeMessageServer(Integer originNodeId, JMSFactory factory) throws JMSException{
         String nodeMessageServer = "message-server-" + originNodeId;
@@ -187,47 +188,24 @@ public class Officer implements JMSConnection{
 //        producer.send(message);
 //    }
 
-    private static void addToCorrespondingMap(int nodeId,String range, Coin coin){
-        if(range.equals("lo")){
-            lows.put(nodeId, coin);
-        }else if(range.equals("mid")){
-            mids.put(nodeId, coin);
-        }else if(range.equals("hi")){
-            highs.put(nodeId, coin);
-        }
-    }
+
 
     public Officer(String topic){
-        //topic.publish(top;ic)
+
 
     }
 
     public void generateMergerQueues(){
-
         //Hierin geeft de officer aan welke node head/tail zijn.
-        //Dit gebeurt a.d.h.v. hi en lo var.
     }
 
     public void retrieveHiLoAndPivotsFromNodes(){
 
     }
 
-    public void retrieveLows(){
-
-    }
-    public void retrieveHighs(){
-
-    }
-    public void retrievePivots(){
-
-    }
-
-
     private void assignMergeTask(int nodeId1, int nodeId2){
 
     }
 
-    public int compare(){
-        return -1;
-    }
+
 }

@@ -1,7 +1,8 @@
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Node {
+public class Node implements Serializable {
     Coin c;
     Node prev, next;
 
