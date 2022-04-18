@@ -70,8 +70,38 @@ public class Officer implements JMSConnection{
         WorkerCommunication workerCommunication = new WorkerCommunication(AMOUNT_OF_WORKERS);
         String[] mergedQueues = workerCommunication.createMergedQueues();
         if(AMOUNT_OF_WORKERS <= 2){ //Special case waarbij de hele lijst gesorteerd is na 1 keer mergen
-            MessageProducer communicator = startNodeMessageServer(nodesThatAreDoneWithMerging.get(0), factory);
-            communicator.send(session.createObjectMessage(new WorkerTextMessage("queue_name", mergedQueues[0])));
+            for(int i = 0; i < AMOUNT_OF_WORKERS; i++){
+                MessageProducer communicator = startNodeMessageServer(nodesThatAreDoneWithMerging.get(i), factory);
+                communicator.send(session.createObjectMessage(new WorkerTextMessage("queue_name", mergedQueues[0])));
+            }
+            ArrayList<Node> sortedNodes = new ArrayList<>();
+            MessageConsumer mergedAlphaConsumer =factory.createConsumerQueue(session, "merged-Alpha");
+            while(sortedNodes.size() < AMOUNT_OF_WORKERS){
+                sortedNodes.add(((CoinListMessage) ((ObjectMessage) mergedAlphaConsumer.receive()).getObject()).getNode());
+            }
+            Node completelySortedNode;
+            List<Coin> completelySorteCoins = new ArrayList<>();
+            if(sortedNodes.size() > 1){
+                if(sortedNodes.get(0).c.compareTo(sortedNodes.get(1).c) > 0){
+                    completelySorteCoins.addAll(sortedNodes.get(1).revealGenealogy());
+                    completelySorteCoins.addAll(sortedNodes.get(0).revealGenealogy());
+                }else{
+                    completelySorteCoins.addAll(sortedNodes.get(0).revealGenealogy());
+                    completelySorteCoins.addAll(sortedNodes.get(1).revealGenealogy());
+                }
+                completelySortedNode = new LinkedList().merge(sortedNodes.get(0), sortedNodes.get(1));
+            }else{
+                completelySortedNode = sortedNodes.get(0);
+            }
+            System.out.println("The entire merge sort process is finished. This is the end result. ");
+            completelySortedNode.revealGenealogy();
+
+
+            System.out.println("completely sorted coins: ");
+            for(Coin c : completelySorteCoins){
+                System.out.println(c.toString());
+            }
+
         }
 
 

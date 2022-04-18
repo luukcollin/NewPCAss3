@@ -6,7 +6,7 @@ public class DataGenerator {
        this.amountOfElements = amountOfElements;
     }
 
-    public List<Coin> generate(){
+    public List<Coin> generate(int uniqueId){
         Random random = new Random();
         List<Coin> allCoins = new ArrayList<>();
         double MINIMUMCAPVALUE = 1_000.0000;
@@ -25,7 +25,8 @@ public class DataGenerator {
         int year;
         int date;
 
-        for(int i = 0; i < amountOfElements; i++){
+        int stopCount = uniqueId * amountOfElements + amountOfElements;
+        for(int i = uniqueId * amountOfElements; i < stopCount; i++){
             coinMarketCap = MINIMUMCAPVALUE + (Math.random() * ((MAXIMUMCAPVALUE - MINIMUMCAPVALUE) +1));
             coinPrice = MINIMUMPRICEVALUE + (MAXIMUMPRICEVALUE - MINIMUMPRICEVALUE) * random.nextDouble();
             coinDailyVolume = MINIMUMDAILYVOLUME + (Math.random() * ((MAXIMUMDAILYVOLUME - MINIMUMDAILYVOLUME) +1));

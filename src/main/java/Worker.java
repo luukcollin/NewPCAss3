@@ -7,6 +7,7 @@ import java.util.*;
 public class Worker implements JMSConnection {
 
     static Coin sendBack = null;
+
     public static void main(String[] args) throws JMSException {
         int workerId = 0;
         int numClients = 2;
@@ -24,14 +25,14 @@ public class Worker implements JMSConnection {
         LinkedList myCoinlist = new LinkedList();
 
         //Genereer (random) coinObjecten en voeg ze toe per stuk toe aan een lege LinkedList instance; First-in-first-out
-        for (Coin c : generateCoinObjects()) {
+        for (Coin c : generateCoinObjects(workerId)) {
             myCoinlist.addTail(c);
         }
         //Sorteer de lijst d.m.v. een recursief Merge Sort algoritme
         myCoinlist.sortList();
         System.out.println();
         System.out.println(leftWorker ? "Left worker: " : "Right worker: ");
-        myCoinlist.printList();
+        myCoinlist.printList(leftWorker);
 
         //Zet de connectie op met JMS
         JMSFactory jmsFactory = new JMSFactory();
@@ -100,20 +101,23 @@ public class Worker implements JMSConnection {
 
 
             done = processExchangedValues(receivedCoin, myCoinlist, leftWorker);
+            myCoinlist.printList(leftWorker);
 
         }
         boolean sentBack = false;
-        while(!sentBack)
-        if (leftWorker && sendBack != null) {
-            messageProducer.send(session.createObjectMessage(sendBack));
-            myCoinlist.addTail((Coin) ((ObjectMessage) messageConsumer.receive()).getObject());
-            sentBack = true;
-        } else if(!leftWorker && sendBack != null){
-            messageProducer.send(session.createObjectMessage(sendBack));
-            myCoinlist.addHead((Coin) ((ObjectMessage) messageConsumer.receive()).getObject());
-            sentBack = true;
-        }
-        myCoinlist.printList();
+        while (!sentBack)
+            if (leftWorker && sendBack != null) {
+                messageProducer.send(session.createObjectMessage(sendBack));
+                myCoinlist.addTail((Coin) ((ObjectMessage) messageConsumer.receive()).getObject());
+                System.out.println("======== ADDED TAIL ======");
+                sentBack = true;
+            } else if (!leftWorker && sendBack != null) {
+                messageProducer.send(session.createObjectMessage(sendBack));
+                myCoinlist.addHead((Coin) ((ObjectMessage) messageConsumer.receive()).getObject());
+                System.out.println("====== ADDED HEAD =======");
+                sentBack = true;
+            }
+        myCoinlist.printList(leftWorker);
         System.out.println("DONE WITH SORTING BOOOYAAHH!");
 
         //Nu heeft de leftworker enkel getallen (coins) die kleiner zijn dan alle getallen van de rightworker
@@ -170,38 +174,53 @@ public class Worker implements JMSConnection {
 
     private static boolean processExchangedValues(Coin receivedCoin, LinkedList myList, boolean isLeftWorker) {
 
-        System.out.println( isLeftWorker ? "Left worker: Coin received: " + receivedCoin.toString() : "Right Worker: Coin received: " + receivedCoin.toString());
+        System.out.println(isLeftWorker ? "Left worker: Coin received: " + receivedCoin.toString() : "Right Worker: Coin received: " + receivedCoin.toString());
         if (isLeftWorker) {
-            System.out.println("Left worker own tail element is: " + myList.giveTailElement().c.toString());
-            if (myList.giveTailElement().c.compareTo(receivedCoin) < 0) {
-                System.out.println("Left worker tail element is smaller than received coin");
-                //Betekent dat de ontvangen Coin niet thuis hoort in deze lijst. Stuur de Coin terug naar de sender
-                sendBack = receivedCoin; //Om variabelen te besparen voegen we de coin toe aan de Tail. Dit element zal
-                //direct uit de lijst gehaald worden als processExchanged() true returned. Dit betekent namelijk ten alle tijde
-                //dat het hoogste elemement van mijn eigen lijst lager is dan het laagste elmeent in een andere lijst
-                return true; //Lijst is gesorteerd
-            }
-            myList.insert(receivedCoin); //ontvangen head //TODO change to insertHead
+            if (receivedCoin.compareTo(myList.giveHeadElement().c) < 0) {
+                myList.addHead(receivedCoin);
+            } else if (receivedCoin.compareTo(myList.giveTailElement().c) < 0) {
+                myList.insert(receivedCoin);
+            } else {
+                System.out.println("Left worker own tail element is: " + myList.giveTailElement().c.toString());
+                if (myList.giveTailElement().c.compareTo(receivedCoin) < 0) {
+                    System.out.println("Left worker tail element is smaller than received coin");
+                    //Betekent dat de ontvangen Coin niet thuis hoort in deze lijst. Stuur de Coin terug naar de sender
 
-        } else {
-            System.out.println("Right worker own tail element is: " + myList.giveHeadElement().c.toString());
-            if (myList.giveHeadElement().c.compareTo(receivedCoin) > 0) {
-                System.out.println("Rigth worker headElement is bigger than received coin");
-                //Betekent dat de ontvangen Coin niet thuis hoort in deze lijst. Stuur de Coin terug naar de sender
-                sendBack = receivedCoin; //Om variabelen te besparen voegen we de coin toe aan de head. Dit element zal
-                //direct uit de lijst gehaald worden als processExchanged() true returned. Dit betekent namelijk ten alle tijde
-                //dat het laagste elemement van mijn eigen lijst al hoger is dan het hoogste elmeent in een andere lijst
-                return true; //Lijst is gesorteerd;
+                    sendBack = receivedCoin; //Om variabelen te besparen voegen we de coin toe aan de Tail. Dit element zal
+                    //direct uit de lijst gehaald worden als processExchanged() true returned. Dit betekent namelijk ten alle tijde
+                    //dat het hoogste elemement van mijn eigen lijst lager is dan het laagste elmeent in een andere lijst
+                    return true; //Lijst is gesorteerd
+                }
+
+                myList.insert(receivedCoin); //ontvangen head //TODO change to insertHead
             }
-            myList.insert(receivedCoin); //ontvangen tail //TODO change to insertTail
+        } else {
+            System.out.println("Right worker own head element is: " + myList.giveHeadElement().c.toString());
+            if (receivedCoin.compareTo(myList.giveTailElement().c) > 0) { //receivedCoin is groter dan rightWorker tail element
+                myList.addTail(receivedCoin);
+            } else if (receivedCoin.compareTo(myList.giveHeadElement().c) > 0) {
+                myList.insert(receivedCoin);
+            } else {
+                if (myList.giveHeadElement().c.compareTo(receivedCoin) > 0) {
+                    System.out.println("Right worker headElement is bigger than received coin");
+                    //Betekent dat de ontvangen Coin niet thuis hoort in deze lijst. Stuur de Coin terug naar de sender
+                    sendBack = receivedCoin; //Om variabelen te besparen voegen we de coin toe aan de head. Dit element zal
+                    //direct uit de lijst gehaald worden als processExchanged() true returned. Dit betekent namelijk ten alle tijde
+                    //dat het laagste elemement van mijn eigen lijst al hoger is dan het hoogste elmeent in een andere lijst
+                    return true; //Lijst is gesorteerd;
+                }
+                myList.insert(receivedCoin); //ontvangen tail //TODO change to insertTail
+
+            }
+
 
         }
         return false;
 
     }
 
-    public static List<Coin> generateCoinObjects() {
-        return new DataGenerator(AMOUNT_OF_ELEMENTS).generate();
+    public static List<Coin> generateCoinObjects(int workerId) {
+        return new DataGenerator(AMOUNT_OF_ELEMENTS).generate(workerId);
     }
 
     public boolean isWorkerTextMessage(ObjectMessage objectMessage) {

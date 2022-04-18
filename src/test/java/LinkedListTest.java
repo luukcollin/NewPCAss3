@@ -82,7 +82,7 @@ public class LinkedListTest {
 
         coinList.insert(coinObjectX);
         coinList.insert(coinObjectY);
-        coinList.printList();
+
 
         Assertions.assertEquals(coinList.giveHeadElement().c, coinObject6);
         Assertions.assertEquals(coinList.giveTailElement().c, coinObject3);

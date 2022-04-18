@@ -40,11 +40,11 @@ public class LinkedList {
     }
 
     //Print de lijst
-    public void printList() {
-        System.out.println(createFormattedOutput(head));
+    public void printList(boolean isLeft) {
+        System.out.println(createFormattedOutput(isLeft, head));
     }
 
-    public String createFormattedOutput(Node n) {
+    public String createFormattedOutput(boolean isLeft, Node n) {
         String output = "";
         Node current = head;
         int count = 0;
@@ -53,7 +53,10 @@ public class LinkedList {
             current = current.next;
             count++;
         }
-        return count + " elements in list:\n" + output;
+        String leftOrRight = isLeft ? "Left" : "Right\n";
+        String headElement = "Head element is: " + giveHeadElement().c.toString() + "\n";
+        String tailElement = "Tail element is: " + giveTailElement().c.toString() + "\n";
+        return leftOrRight + headElement + tailElement + count + " elements in list:\n" + output;
     }
 
 
