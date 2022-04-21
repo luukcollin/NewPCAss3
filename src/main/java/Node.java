@@ -24,5 +24,8 @@ public class Node implements Serializable {
         }
         return allCoinsInNodeList;
     }
+    public void setPrev(Node prev){
+        this.prev =prev;
+    }
 
 }
