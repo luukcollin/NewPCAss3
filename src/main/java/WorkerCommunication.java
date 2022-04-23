@@ -18,8 +18,8 @@ public class WorkerCommunication implements Serializable {
      */
     public String[] createMessageServerQueueNames(){
             String [] queueNames = new String[amountOfWorkers];
-            for(int i = 0; i < queueNames.length; i++){
-                queueNames[i] = "message-server-" + i;
+            for(int i = 1; i <= queueNames.length; i++){
+                queueNames[i-1] = "message-server-" + i;
             }
             return queueNames;
         }

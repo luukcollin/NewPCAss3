@@ -41,38 +41,100 @@ public class Officer implements JMSConnection {
         }
         System.out.println("Officer konws everyone is done with merging.");
         WorkerCommunication workerCommunication = new WorkerCommunication(AMOUNT_OF_WORKERS);
-        String[] mergedQueues = workerCommunication.createMergedQueues();
+        String[] messageServers = workerCommunication.createMessageServerQueueNames();
 
         /**
-         * Special case in geval van slechts 2 nodes
+         * In geval van 4 Nodes:
+         * 1. Merge 1 and 2, merge 3 and 4. [1: LEFT, 2: RIGHT, 3: LEFT, 4: RIGHT] //DONE step1
+         * 2. Merge 1 and 3, merge 2 and 4. [1: LEFT, 2: LEFT, 3: RIGHT, 4: RIGHT] //DONE step2
+         * 3. Merge 2 and 3. [1: LEFT, 2 left MID, 3 right MID, 4 RIGHT] step3
          */
-        if (AMOUNT_OF_WORKERS <= 2) { //Special case waarbij de hele lijst gesorteerd is na 1 keer mergen
-            for (int i = 0; i < AMOUNT_OF_WORKERS; i++) {
-                MessageProducer communicator = startNodeMessageServer(nodesThatAreDoneWithMerging.get(i), factory);
-                communicator.send(session.createObjectMessage(new WorkerTextMessage("queue_name", mergedQueues[0])));
+
+        //Step 2: Merge 1 and 3. Merge 2 and 4.
+        MessageProducer w1Communicator = factory.createProducerQueue(session, messageServers[0]);
+        MessageProducer w2Communicator = factory.createProducerQueue(session, messageServers[1]);
+        MessageProducer w3Communicator = factory.createProducerQueue(session, messageServers[2]);
+        MessageProducer w4Communicator = factory.createProducerQueue(session, messageServers[3]);
+
+        w1Communicator.send(session.createObjectMessage(new WorkerTextMessage("produce", "step2-odd-head")));
+        w1Communicator.send(session.createObjectMessage(new WorkerTextMessage("consume", "step2-odd-tail")));
+        w3Communicator.send(session.createObjectMessage(new WorkerTextMessage("produce", "step2-odd-tail")));
+        w3Communicator.send(session.createObjectMessage(new WorkerTextMessage("consume", "step2-odd-head")));
+
+        w2Communicator.send(session.createObjectMessage(new WorkerTextMessage("produce", "step2-even-head")));
+        w2Communicator.send(session.createObjectMessage(new WorkerTextMessage("consume", "step2-even-tail")));
+        w4Communicator.send(session.createObjectMessage(new WorkerTextMessage("consume", "step2-even-head")));
+        w4Communicator.send(session.createObjectMessage(new WorkerTextMessage("produce", "step2-even-tail")));
+
+        //Officer will wait again till Nodes are done with merging...
+        ArrayList<Integer> nodesThatAreDoneWithMergingStep2 = new ArrayList<Integer>();
+        while (nodesThatAreDoneWithMergingStep2.size() < AMOUNT_OF_WORKERS) {
+            System.out.println("wachten op nodes die klaar zijn met mergen");
+            WorkerTextMessage workerTextMessage = (WorkerTextMessage) ((ObjectMessage) consumer.receive()).getObject();
+            if (workerTextMessage.getMessageType().equals("done_merging_step2")) {
+                nodesThatAreDoneWithMergingStep2.add(Integer.parseInt(workerTextMessage.getMessage()));
             }
-            MessageConsumer mergedAlphaConsumer = factory.createConsumerQueue(session, "merged-Alpha");
-            Node comletelySortedNode = sortAlphaQueueAndGet(mergedAlphaConsumer, session);
-
-            System.out.println("The entire merge sort process is finished. This is the end result. ");
-            comletelySortedNode.revealGenealogy();
-
-
-            /**
-             * Meer dan 2 nodes
-             */
-        } else {
-            /**
-             * Enkel gebruik maken van merged0, merged1 en merged-Alpha.
-             * De gemergede resultaten door sturen naar QueueAlpha.
-             * Methode aanmaken voor dinges vanaf regel 81. Deze merged de Alpha Merged naar 1 gesorteerde node.
-             */
         }
 
+        System.out.println("Officer knows that Nodes are done with Merging step 2. ");
+
+        w2Communicator.send(session.createObjectMessage(new WorkerTextMessage("produce", "left-mid")));
+        w2Communicator.send(session.createObjectMessage(new WorkerTextMessage("consume", "step2-odd-tail")));
+
+        w3Communicator.send(session.createObjectMessage(new WorkerTextMessage("produce", "right-mid")));
+        w3Communicator.send(session.createObjectMessage(new WorkerTextMessage("consume", "step2-even-head")));
 
 
+        String[] mergedQueues = workerCommunication.createMergedQueues();
 
     }
+
+
+
+
+
+
+
+
+
+
+
+
+//
+//
+//
+//        /**
+//         * Special case in geval van slechts 2 nodes
+//         */
+//        if (AMOUNT_OF_WORKERS <= 2) { //Special case waarbij de hele lijst gesorteerd is na 1 keer mergen
+//            for (int i = 0; i < AMOUNT_OF_WORKERS; i++) {
+//                MessageProducer communicator = startNodeMessageServer(nodesThatAreDoneWithMerging.get(i), factory);
+//                communicator.send(session.createObjectMessage(new WorkerTextMessage("queue_name", mergedQueues[0])));
+//            }
+//            MessageConsumer mergedAlphaConsumer = factory.createConsumerQueue(session, "merged-Alpha");
+//            Node comletelySortedNode = sortAlphaQueueAndGet(mergedAlphaConsumer, session);
+//
+//            System.out.println("The entire merge sort process is finished. This is the end result. ");
+//            comletelySortedNode.revealGenealogy();
+//
+//
+//            /**
+//             * Meer dan 2 nodes
+//             */
+//        } else {
+//            MessageConsumer mergedAlphaConsumer = factory.createConsumerQueue(session, "merged-Alpha");
+//            sortAlphaQueueAndGet(mergedAlphaConsumer, session);
+//            /**
+//             * Enkel gebruik maken van merged0, merged1 en merged-Alpha.
+//             * De gemergede resultaten door sturen naar QueueAlpha.
+//             * Methode aanmaken voor dinges vanaf regel 81. Deze merged de Alpha Merged naar 1 gesorteerde node.
+//             */
+//        }
+//
+//
+//
+
+
     public static Node combine(Node first, Node second){
         if(first.c.compareTo(second.c) > 0){
             first.setPrev(second);
@@ -83,38 +145,61 @@ public class Officer implements JMSConnection {
         }
     }
 
-    private static Node sortAlphaQueueAndGet(MessageConsumer alphaConsumer, Session session) throws JMSException {
-        ArrayList<Node> sortedNodes = new ArrayList<>();
-        int amountOfHeadsAndTailsOnAlphaQueue = getQueueSize(session,session.createQueue("merged-Alpha"));
-        while (sortedNodes.size() < amountOfHeadsAndTailsOnAlphaQueue) {
-            sortedNodes.add(((CoinListMessage) ((ObjectMessage) alphaConsumer.receive()).getObject()).getNode());
-        }
-
-        Node completelySortedNode;
-        List<Coin> completelySortedCoins = new ArrayList<>();
-        LinkedList skr = new LinkedList();
-        if (sortedNodes.size() > 1) {
-            System.out.println("=========================");
-            completelySortedNode = skr.merge(sortedNodes.get(0), sortedNodes.get(1));
-//            completelySortedNode = combine(sortedNodes.get(0), sortedNodes.get(1));
-//            if (sortedNodes.get(0).c.compareTo(sortedNodes.get(1).c) > 0) {
-//                completelySortedCoins.addAll(sortedNodes.get(1).revealGenealogy());
-//                completelySortedCoins.addAll(sortedNodes.get(0).revealGenealogy());
-//            } else {
+//    private static Node sortAlphaQueueAndGet(MessageConsumer alphaConsumer) throws JMSException {
+//        ArrayList<LinkedList> sortedLists = new ArrayList<>();
+//        LinkedList sortedList = new LinkedList();
+//        ArrayList<Node> allHeadsAndTails = new ArrayList<>();
+//        int i = 0;
+//        while (i < AMOUNT_OF_WORKERS) {
+//            Node receviedNode = ((CoinListMessage) ((ObjectMessage) alphaConsumer.receive()).getObject()).getNode();
+//            allHeadsAndTails.add(receviedNode);
+//            LinkedList headOrTail = new LinkedList();
+//            headOrTail.addTailNode(receviedNode);
+//            sortedLists.add(headOrTail);
 //
-//                completelySortedCoins.addAll(sortedNodes.get(0).revealGenealogy());
-//                completelySortedCoins.addAll(sortedNodes.get(1).revealGenealogy());
+//            i++;
+//        }
+//        System.out.println("========== MERGED =============");
 //
-//            }
-//            completelySortedNode = new LinkedList().merge(sortedNodes.get(0), sortedNodes.get(1));
-        } else {
-            completelySortedNode = sortedNodes.get(0);
+//        if(AMOUNT_OF_WORKERS == 1){
+//            return allHeadsAndTails.get(0);
+//        }
+//        if(AMOUNT_OF_WORKERS == 2){
+//            sortedList.mergeSortedHeadsAndTails(allHeadsAndTails.get(0), allHeadsAndTails.get(1));
+//        }
+//        if(AMOUNT_OF_WORKERS == 3){
+//
+//            sortedList.mergeSortedHeadsAndTails(allHeadsAndTails.get(2), sortedList.mergeSortedHeadsAndTails(allHeadsAndTails.get(0), allHeadsAndTails.get(1)));
+//        }
+//        if(AMOUNT_OF_WORKERS == 4){
+//            sortedList.mergeSortedHeadsAndTails(sortedList.mergeSortedHeadsAndTails(allHeadsAndTails.get(0), allHeadsAndTails.get(1)), sortedList.mergeSortedHeadsAndTails(allHeadsAndTails.get(2), allHeadsAndTails.get(3)));
+//        }
+//
+//        sortedList.merge(sortedList.giveHeadElement(), sortedList.giveTailElement()).revealGenealogy();
+//        sortedList.size();
+//        return sortedList.giveHeadElement();
 
+//        ArrayList<Node> sortedNodes = new ArrayList<>();
+//        int amountOfHeadsAndTailsOnAlphaQueue = getQueueSize(session,session.createQueue("merged-Alpha"));
+//        while (sortedNodes.size() < amountOfHeadsAndTailsOnAlphaQueue) {
+//            sortedNodes.add(((CoinListMessage) ((ObjectMessage) alphaConsumer.receive()).getObject()).getNode());
+//        }
+//
+//        Node completelySortedNode;
+//
+//        LinkedList completelySortedCoins = new LinkedList();
+//
+//        if (sortedNodes.size() == 1) {
+//            System.out.println("=========================");
+//            completelySortedNode = completelySortedCoins.merge(sortedNodes.get(0), sortedNodes.get(1));
+//        } else {
+//            completelySortedNode = sortedNodes.get(0);
+//
+//
+//
+//        }
+//        return completelySortedNode;
 
-
-        }
-        return completelySortedNode;
-    }
 
     /**
      * @param session

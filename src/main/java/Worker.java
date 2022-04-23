@@ -117,6 +117,57 @@ public class Worker implements JMSConnection {
         //Tijd om de officer te berichten dat alles goed verlopen is
         MessageProducer officerProducer = jmsFactory.createProducerQueue(session, "officer");
         officerProducer.send(session.createObjectMessage(new WorkerTextMessage("done_merging", String.valueOf(workerId))));
+        System.out.println("Worker is done with merging. Will take a pause until officer sends commmands");
+
+
+        String queueToConsume = null;
+        String queueToProduce = null;
+        MessageConsumer officerMessageConsumer = jmsFactory.createConsumerQueue(session, "message-server-" + workerId);
+        while(queueToConsume == null || queueToProduce == null) {
+            WorkerTextMessage receivedMessage = (WorkerTextMessage) ((ObjectMessage) officerMessageConsumer.receive()).getObject();
+            if (receivedMessage.getMessageType().equals("consume")) {
+                queueToConsume = receivedMessage.getMessage();
+            } else if (receivedMessage.getMessageType().equals("produce")) {
+                queueToProduce = receivedMessage.getMessage();
+            }
+        }
+        System.out.println("Worker " +  workerId + " has received consumerqueue and producerqueue");
+        if(AMOUNT_OF_WORKERS > 2){
+            leftWorker = !queueToConsume.contains("tail");
+
+            MessageProducer messageProducer1 = jmsFactory.createProducerQueue(session,  queueToProduce);
+            MessageConsumer messageConsumer1 = jmsFactory.createConsumerQueue(session, queueToConsume);
+
+            boolean done1=  false;
+            while(!done1) {
+                if (leftWorker) {
+                    Coin objectToSend = myCoinlist.giveTailElementAndRemove();
+                    sentCoin = objectToSend;
+//                System.out.println(leftOrRightWorker + ") Sends: " + objectToSend.toString());
+                    //Stuur de grootste Coin van mijn eigen gesorteerde lijst weg
+                    messageProducer1.send(session.createObjectMessage(objectToSend));
+                    //Ontvang van een andere worker zijn laagste Coin
+
+                    receivedCoin = (Coin) ((ObjectMessage) messageConsumer1.receive()).getObject();
+                    System.out.println(leftOrRightWorker + ") Received: " + receivedCoin.toString());
+                } else {
+                    Coin objectToSend = myCoinlist.giveHeadElementAndRemove();
+                    sentCoin = objectToSend;
+                    //Stuur de laagste Coin van mijn eigen gesorteerde lijst weg
+//                System.out.println(leftOrRightWorker + ") Sends: " + objectToSend.toString());
+                    messageProducer1.send(session.createObjectMessage(objectToSend));
+                    //Ontvang van een andere worker zijn laagste Coin
+                    receivedCoin = (Coin) ((ObjectMessage) messageConsumer1.receive()).getObject();
+
+                    System.out.println(leftOrRightWorker + ") Received: " + receivedCoin.toString());
+                }
+                done1 = processExchangedValues(sentCoin, receivedCoin, myCoinlist, leftWorker);
+            }
+        }
+        System.out.println("WORKED AS A CHARM ==================================================");
+        //Notify the officer that I'm done with merging step 2.
+        officerProducer.send(session.createObjectMessage(new WorkerTextMessage("done_merging_step2", String.valueOf(workerId))));
+
 
         //Worker bepaalt naar welke queue hij zijn gemergde lijst moet sturen (HEAD location or TAIL)
 //        String queueName = leftWorker ? "head" + determineQueueId(workerId) : "tail" + determineQueueId(workerId);

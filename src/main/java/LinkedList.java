@@ -1,3 +1,5 @@
+import java.util.ArrayList;
+
 public class LinkedList {
     Node head;
 
@@ -25,6 +27,21 @@ public class LinkedList {
                 current = current.next;
             }
             current.next = newNode;
+
+        }
+    }
+
+    //In case the order doesn't matter directly, we can add a given Node n to the list. F.e. with adding all the heads
+    //and tails from the Merged-Alpha queue to the linkedlist, because we have to figure out the right order later anyways
+    public void addTailNode(Node n) {
+        if (head == null) {
+            head = n;
+        } else {
+            Node current = head;
+            while (current.next != null) {
+                current = current.next;
+            }
+            current.next = n;
 
         }
     }
@@ -127,6 +144,61 @@ public class LinkedList {
 
         return temp.c;
 
+    }
+
+    public void mergeSortedHeadsAndTails(ArrayList<LinkedList> sortedHeadAndTails){
+        Coin smallest = sortedHeadAndTails.get(0).giveHeadElement().c;
+        Coin biggest = sortedHeadAndTails.get(0).giveTailElement().c;
+        int indexOfSmallest = 0;
+        int indexOfBiggest = 0;
+        for(int i = 0; i < sortedHeadAndTails.size(); i++){
+            if(smallest.compareTo(sortedHeadAndTails.get(i).giveHeadElement().c) > 0){
+                smallest = sortedHeadAndTails.get(i).giveHeadElement().c;
+                indexOfSmallest = i;
+            }
+            if(biggest.compareTo(sortedHeadAndTails.get(i).giveTailElement().c) < 0){
+                biggest = sortedHeadAndTails.get(i).giveTailElement().c;
+                indexOfBiggest = i;
+            }
+        }
+
+    }
+
+    public Node giveHeadAndRemove() {
+        if (head == null) {
+            return null;
+        }
+        head = head.next;
+
+        return head;
+
+    }
+    public Node giveTailAndRemove() {
+        //elements contains only one element
+        if (head != null && head.next == null) {
+            Node temp = head;
+            head = null;
+
+            return temp;
+        }
+        if (head == null)
+            return null;
+
+        if (head.next == null) {
+            return null;
+        }
+
+        // Find the second last node
+        Node tailPrev = head;
+        while (tailPrev.next.next != null)
+            tailPrev = tailPrev.next;
+
+
+        Node tempTailElement = tailPrev.next;
+        // Change next of second last
+        tailPrev.next = null;
+
+        return tempTailElement;
     }
 
     public Coin giveTailElementAndRemove() {
