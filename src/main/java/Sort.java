@@ -5,13 +5,14 @@ import java.util.List;
 public class Sort {
     //Return is a Node is sorted
     public boolean isSorted(Node coin){
-        Node temp = coin;
-        while(temp.next != null && temp.c.compareTo(temp.next.c) < 0){
-            temp = temp.next;
-            if(temp.next.next == null){
-                return true;
-            }
+        Node current = coin;
+        if(current == null || current.next == null){
+            return true;
         }
-        return false;
+        while(current.next != null){
+          if(current.c.compareTo(current.next.c) > 0) return false;
+          current = current.next;
+        }
+        return true;
     }
 }

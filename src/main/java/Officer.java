@@ -78,26 +78,46 @@ public class Officer implements JMSConnection {
 
         System.out.println("Officer knows that Nodes are done with Merging step 2. ");
 
-        w2Communicator.send(session.createObjectMessage(new WorkerTextMessage("produce", "left-mid")));
-        w2Communicator.send(session.createObjectMessage(new WorkerTextMessage("consume", "step2-odd-tail")));
+        //Officer will tell to worker2 en worker3 that they have to do one final merge together. This means they
+        //will have to merge 'step2-even-head' and 'step2-odd-tail' together in order to have the left-mid and right-mid
+        //elements in the right order
 
-        w3Communicator.send(session.createObjectMessage(new WorkerTextMessage("produce", "right-mid")));
-        w3Communicator.send(session.createObjectMessage(new WorkerTextMessage("consume", "step2-even-head")));
+        w2Communicator.send(session.createObjectMessage(new WorkerTextMessage("produce", "step3-head")));
+        w2Communicator.send(session.createObjectMessage(new WorkerTextMessage("consume", "step3-tail")));
 
+        w3Communicator.send(session.createObjectMessage(new WorkerTextMessage("produce", "step3-tail")));
+        w3Communicator.send(session.createObjectMessage(new WorkerTextMessage("consume", "step3-head")));
+
+        //W1 en w4 zijn klaar, dus deze kunnen verder.
+        w1Communicator.send(session.createObjectMessage(new WorkerTextMessage("continue", "true")));
+        w4Communicator.send(session.createObjectMessage(new WorkerTextMessage("continue", "true")));
+
+
+        List<MessageProducer> commmunicators = new ArrayList<>();
+        commmunicators.addAll(Arrays.asList(w1Communicator, w2Communicator, w3Communicator, w4Communicator));
+
+        int i = 0;
+       Queue mergedAlphaQueue = session.createQueue("merged-Alpha");
+       MessageConsumer alphaConsumer =factory.createConsumerQueue(session, "merged-Alpha");
+       ArrayList<Node> coinListsInOrderSorted = new ArrayList<>();
+        while (i < commmunicators.size()) {
+                commmunicators.get(i).send(session.createObjectMessage(new WorkerTextMessage("send-to-alpha", "well done mate")));
+               coinListsInOrderSorted.add(0, ((CoinListMessage)( (ObjectMessage) alphaConsumer.receive()).getObject()).getNode());
+               i++;
+        }
+
+        System.out.println("ALLE RESULTATEN ZIJN BINNENGEHENGELD DOOR DE OFFICIER");
+
+        System.out.println("-----------------------------------------------------");
+        for(Node n : coinListsInOrderSorted){
+            System.out.println(coinListsInOrderSorted.indexOf(n)+1 + ": \n");
+            n.revealGenealogy();
+            System.out.println(new Sort().isSorted(n) ? "Sorted" : "Unsorted");
+        }
 
         String[] mergedQueues = workerCommunication.createMergedQueues();
 
     }
-
-
-
-
-
-
-
-
-
-
 
 
 //
@@ -135,11 +155,11 @@ public class Officer implements JMSConnection {
 //
 
 
-    public static Node combine(Node first, Node second){
-        if(first.c.compareTo(second.c) > 0){
+    public static Node combine(Node first, Node second) {
+        if (first.c.compareTo(second.c) > 0) {
             first.setPrev(second);
             return first;
-        }else{
+        } else {
             second.setPrev(first);
             return second;
         }
