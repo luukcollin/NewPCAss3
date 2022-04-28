@@ -6,6 +6,8 @@ import java.util.*;
 public class Worker implements JMSConnection {
 
     static Coin sendBack = null;
+    //Maak een nieuwe instance van een zelfgeschreven LinkedList class
+    static LinkedList myCoinlist = new LinkedList();
 
     public static void main(String[] args) throws JMSException {
         int workerId = 0;
@@ -28,8 +30,7 @@ public class Worker implements JMSConnection {
 
 
         boolean leftWorker = workerId % 2 == 0; //Workers met een even workerId zijn leftworkers
-        //Maak een nieuwe instance van een zelfgeschreven LinkedList class
-        LinkedList myCoinlist = new LinkedList();
+
 
         //Genereer (random) coinObjecten en voeg ze toe per stuk toe aan een lege LinkedList instance; First-in-first-out
         for (Coin c : generateCoinObjects(workerId)) {
@@ -37,8 +38,6 @@ public class Worker implements JMSConnection {
         }
         //Sorteer de lijst d.m.v. een recursief Merge Sort algoritme
         myCoinlist.sortList();
-
-
 
 
         //Zet de connectie op met JMS
@@ -51,68 +50,26 @@ public class Worker implements JMSConnection {
         MessageProducer topicProducer = session.createProducer(officerTopic);
         topicProducer.send(session.createObjectMessage(new WorkerTextMessage("done_sorting", "worker" + workerId)));
 
-        boolean done = false;
+
         MessageProducer messageProducer;
         MessageConsumer messageConsumer;
-        Coin sentCoin;
         if (leftWorker) {
-            messageProducer = jmsFactory.createProducerQueue(session,  tq);
+            messageProducer = jmsFactory.createProducerQueue(session, tq);
             messageConsumer = jmsFactory.createConsumerQueue(session, hq);
         } else {
             messageProducer = jmsFactory.createProducerQueue(session, hq);
-            messageConsumer = jmsFactory.createConsumerQueue(session,  tq);
+            messageConsumer = jmsFactory.createConsumerQueue(session, tq);
         }
-        Coin receivedCoin = null;
+        exchangeValues(leftWorker, session, messageProducer, messageConsumer);
+
         String leftOrRightWorker = leftWorker ? "Left worker " : "Right worker ";
-        while (!done) {
-            if (leftWorker) {
-                Coin objectToSend = myCoinlist.giveTailElementAndRemove();
-                sentCoin = objectToSend;
-//                System.out.println(leftOrRightWorker + ") Sends: " + objectToSend.toString());
-                //Stuur de grootste Coin van mijn eigen gesorteerde lijst weg
-                messageProducer.send(session.createObjectMessage(objectToSend));
-                //Ontvang van een andere worker zijn laagste Coin
-
-                receivedCoin = (Coin) ((ObjectMessage) messageConsumer.receive()).getObject();
-                System.out.println(leftOrRightWorker + ") Received: " + receivedCoin.toString());
-            } else {
-                Coin objectToSend = myCoinlist.giveHeadElementAndRemove();
-                sentCoin = objectToSend;
-                //Stuur de laagste Coin van mijn eigen gesorteerde lijst weg
-//                System.out.println(leftOrRightWorker + ") Sends: " + objectToSend.toString());
-                messageProducer.send(session.createObjectMessage(objectToSend));
-                //Ontvang van een andere worker zijn laagste Coin
-                receivedCoin = (Coin) ((ObjectMessage) messageConsumer.receive()).getObject();
-
-                System.out.println(leftOrRightWorker + ") Received: " + receivedCoin.toString());
-            }
-            done = processExchangedValues(sentCoin, receivedCoin, myCoinlist, leftWorker);
-            System.out.println(done);
-        }
-        boolean sentBack = false;
-        while (!sentBack)
-            if (leftWorker && sendBack != null) {
-                messageProducer.send(session.createObjectMessage(sendBack));
 
 
-                Coin receivedCoinBack = (Coin) ((ObjectMessage) messageConsumer.receive()).getObject();
-                System.out.println("Left worker received: (SENT BACK) " + receivedCoinBack.toString());
-                myCoinlist.addTail(receivedCoinBack);
-                System.out.println("======== ADDED TAIL ======");
-                sentBack = true;
-            } else if (!leftWorker && sendBack != null) {
-                messageProducer.send(session.createObjectMessage(sendBack));
+        sendBackAndReceive(leftWorker, messageProducer, messageConsumer, session);
 
-                Coin receivedCoinBack = (Coin) ((ObjectMessage) messageConsumer.receive()).getObject();
-                myCoinlist.addHead(receivedCoinBack);
-                System.out.println("Right worker received: (SENT BACK) " + receivedCoinBack.toString());
-                System.out.println("====== ADDED HEAD =======");
-                sentBack = true;
-            }
-        sentBack = false;
         myCoinlist.printList(leftWorker);
         String workerLeftRight = leftWorker ? ") Left worker: " : ") Right worker: ";
-        System.out.println(workerId +  workerLeftRight + "is done with sorting");
+        System.out.println(workerId + workerLeftRight + "is done with sorting");
 
         //Nu heeft de leftworker enkel getallen (coins) die kleiner zijn dan alle getallen van de rightworker
         //Tijd om de officer te berichten dat alles goed verlopen is
@@ -124,7 +81,8 @@ public class Worker implements JMSConnection {
         String queueToConsume = null;
         String queueToProduce = null;
         MessageConsumer officerMessageConsumer = jmsFactory.createConsumerQueue(session, "message-server-" + workerId);
-        while(queueToConsume == null || queueToProduce == null) {
+        while (queueToConsume == null || queueToProduce == null) {
+            System.out.println("vast");
             WorkerTextMessage receivedMessage = (WorkerTextMessage) ((ObjectMessage) officerMessageConsumer.receive()).getObject();
             if (receivedMessage.getMessageType().equals("consume")) {
                 queueToConsume = receivedMessage.getMessage();
@@ -132,79 +90,34 @@ public class Worker implements JMSConnection {
                 queueToProduce = receivedMessage.getMessage();
             }
         }
-        MessageProducer messageProducer1 = jmsFactory.createProducerQueue(session,  queueToProduce);
+        System.out.println("NIET VAST "+ workerId);
+        MessageProducer messageProducer1 = jmsFactory.createProducerQueue(session, queueToProduce);
         MessageConsumer messageConsumer1 = jmsFactory.createConsumerQueue(session, queueToConsume);
-        System.out.println("Worker " +  workerId + " has received consumerqueue and producerqueue");
-        if(AMOUNT_OF_WORKERS > 2){
+        System.out.println("Worker " + workerId + " has received consumerqueue and producerqueue");
+        if (AMOUNT_OF_WORKERS > 2) {
             leftWorker = !queueToConsume.contains("tail");
 
-
-
-            boolean done1=  false;
-            while(!done1) {
-                if (leftWorker) {
-                    Coin objectToSend = myCoinlist.giveTailElementAndRemove();
-                    sentCoin = objectToSend;
-//                System.out.println(leftOrRightWorker + ") Sends: " + objectToSend.toString());
-                    //Stuur de grootste Coin van mijn eigen gesorteerde lijst weg
-                    messageProducer1.send(session.createObjectMessage(objectToSend));
-                    //Ontvang van een andere worker zijn laagste Coin
-
-                    receivedCoin = (Coin) ((ObjectMessage) messageConsumer1.receive()).getObject();
-                    System.out.println(leftOrRightWorker + ") Received: " + receivedCoin.toString());
-                } else {
-                    Coin objectToSend = myCoinlist.giveHeadElementAndRemove();
-                    sentCoin = objectToSend;
-                    //Stuur de laagste Coin van mijn eigen gesorteerde lijst weg
-//                System.out.println(leftOrRightWorker + ") Sends: " + objectToSend.toString());
-                    messageProducer1.send(session.createObjectMessage(objectToSend));
-                    //Ontvang van een andere worker zijn laagste Coin
-                    receivedCoin = (Coin) ((ObjectMessage) messageConsumer1.receive()).getObject();
-
-                    System.out.println(leftOrRightWorker + ") Received: " + receivedCoin.toString());
-                }
-                done1 = processExchangedValues(sentCoin, receivedCoin, myCoinlist, leftWorker);
-            }
+            exchangeValues(leftWorker, session, messageProducer1, messageConsumer1);
 
         }
+        sendBackAndReceive(leftWorker, messageProducer1, messageConsumer1, session);
 
-        while (!sentBack)
-            if (leftWorker && sendBack != null) {
-                messageProducer1.send(session.createObjectMessage(sendBack));
-
-
-                Coin receivedCoinBack = (Coin) ((ObjectMessage) messageConsumer1.receive()).getObject();
-                System.out.println("Left worker received: (SENT BACK) " + receivedCoinBack.toString());
-                myCoinlist.addTail(receivedCoinBack);
-                System.out.println("======== ADDED TAIL ======");
-                sentBack = true;
-            } else if (!leftWorker && sendBack != null) {
-                messageProducer1.send(session.createObjectMessage(sendBack));
-
-                Coin receivedCoinBack = (Coin) ((ObjectMessage) messageConsumer1.receive()).getObject();
-                myCoinlist.addHead(receivedCoinBack);
-                System.out.println("Right worker received: (SENT BACK) " + receivedCoinBack.toString());
-                System.out.println("====== ADDED HEAD =======");
-                sentBack = true;
-            }
-
-        sentBack = false;
         System.out.println("WORKED AS A CHARM ==================================================");
         //Notify the officer that I'm done with merging step 2.
         officerProducer.send(session.createObjectMessage(new WorkerTextMessage("done_merging_step2", String.valueOf(workerId))));
 
-        boolean continueWithProcess = false;
+        boolean stopWithProcess = false;
         MessageConsumer step3Consumer = null;
         MessageProducer step3Producer = null;
         boolean skipStep3 = false;
-        boolean left =false;
-        while(!continueWithProcess){
+        boolean left = false;
+        while (!stopWithProcess) {
 
-            if(step3Consumer == null || step3Producer == null) {
+            if (step3Consumer == null || step3Producer == null) {
                 WorkerTextMessage officerMessage = (WorkerTextMessage) ((ObjectMessage) officerMessageConsumer.receive()).getObject();
                 if (officerMessage.getMessageType().equals("continue")) {
-                    continueWithProcess = officerMessage.getMessage().equals("true");
-                    skipStep3 = continueWithProcess;
+                    stopWithProcess = officerMessage.getMessage().equals("true");
+                    skipStep3 = stopWithProcess;
                 } else if (officerMessage.getMessageType().equals("produce")) {
                     String receivedQueueToProduce = officerMessage.getMessage();
                     left = !receivedQueueToProduce.contains("head");
@@ -213,57 +126,17 @@ public class Worker implements JMSConnection {
                     String receivedQueueToConsume = officerMessage.getMessage();
                     step3Consumer = jmsFactory.createConsumerQueue(session, receivedQueueToConsume);
                 }
-            }else {
-                boolean done2 = false;
-                System.out.println("WORKER " + workerId +  " isLeft: " + left);
-                while (!done2) {
-                    if (left) {
-                        Coin objectToSend = myCoinlist.giveTailElementAndRemove();
-                        sentCoin = objectToSend;
-//                System.out.println(leftOrRightWorker + ") Sends: " + objectToSend.toString());
-                        //Stuur de grootste Coin van mijn eigen gesorteerde lijst weg
-                        step3Producer.send(session.createObjectMessage(objectToSend));
-                        //Ontvang van een andere worker zijn laagste Coin
-
-                        receivedCoin = (Coin) ((ObjectMessage) step3Consumer.receive()).getObject();
-                        System.out.println(leftOrRightWorker + ") Received: " + receivedCoin.toString());
-                    } else {
-                        Coin objectToSend = myCoinlist.giveHeadElementAndRemove();
-                        sentCoin = objectToSend;
-                        //Stuur de laagste Coin van mijn eigen gesorteerde lijst weg
-//                System.out.println(leftOrRightWorker + ") Sends: " + objectToSend.toString());
-                        step3Producer.send(session.createObjectMessage(objectToSend));
-                        //Ontvang van een andere worker zijn laagste Coin
-                        receivedCoin = (Coin) ((ObjectMessage) step3Consumer.receive()).getObject();
-
-                        System.out.println(leftOrRightWorker + ") Received: " + receivedCoin.toString());
-                    }
-                    done2 = processExchangedValues(sentCoin, receivedCoin, myCoinlist, left);
-                    continueWithProcess = done2;
-                }
+            }else{
+                stopWithProcess = true;
             }
         }
-        while (!sentBack && !skipStep3)
-            if (leftWorker && sendBack != null) {
-                step3Producer.send(session.createObjectMessage(sendBack));
+
+        if (!skipStep3) {
+            exchangeValues(left, session, step3Producer, step3Consumer);
+            sendBackAndReceive(left, step3Producer, step3Consumer, session);
+        }
 
 
-                Coin receivedCoinBack = (Coin) ((ObjectMessage) step3Consumer.receive()).getObject();
-                System.out.println("Left worker received: (SENT BACK) " + receivedCoinBack.toString());
-                myCoinlist.addTail(receivedCoinBack);
-                System.out.println("======== ADDED TAIL ======");
-                sentBack = true;
-            } else if (!leftWorker && sendBack != null) {
-                step3Producer.send(session.createObjectMessage(sendBack));
-
-                Coin receivedCoinBack = (Coin) ((ObjectMessage) step3Consumer.receive()).getObject();
-                myCoinlist.addHead(receivedCoinBack);
-                System.out.println("Right worker received: (SENT BACK) " + receivedCoinBack.toString());
-                System.out.println("====== ADDED HEAD =======");
-                sentBack = true;
-            }
-
-        sentBack = false;
         System.out.println("ALLE BERICHTEN VAN STAP 1 TOT EN MET 3 ZIJN GEMERGED. NU ALLES STUK VOOR STUK NAAR ALPHA STUREN");
         //Worker bepaalt naar welke queue hij zijn gemergde lijst moet sturen (HEAD location or TAIL)
 //        String queueName = leftWorker ? "head" + determineQueueId(workerId) : "tail" + determineQueueId(workerId);
@@ -271,7 +144,7 @@ public class Worker implements JMSConnection {
 
         System.out.println("Worker stuurt berichten head/tail naar " + queueName + ", but only after he receives a message from the Officer to do so.");
         boolean doneWithEntireProcess = false;
-        while(!doneWithEntireProcess) {
+        while (!doneWithEntireProcess) {
             WorkerTextMessage officerMessage = (WorkerTextMessage) ((ObjectMessage) officerMessageConsumer.receive()).getObject();
             if (officerMessage.getMessageType().equals("send-to-alpha")) {
                 //Stuur linkedList naar merged-Alpha queue
@@ -281,7 +154,6 @@ public class Worker implements JMSConnection {
             }
         }
         System.out.println("ghehehhehehehehehehehehehehe i'm done");
-
 
 
     }
@@ -307,6 +179,50 @@ public class Worker implements JMSConnection {
         return count;
     }
 
+    private static void sendBackAndReceive(boolean leftWorker, MessageProducer mp, MessageConsumer mc, Session session) throws JMSException {
+        if (leftWorker && sendBack != null) {
+            mp.send(session.createObjectMessage(sendBack));
+            Coin receivedCoinBack = (Coin) ((ObjectMessage) mc.receive()).getObject();
+            System.out.println("Left worker received: (SENT BACK) " + receivedCoinBack.toString());
+            myCoinlist.addTail(receivedCoinBack);
+            System.out.println("======== ADDED TAIL ======");
+        } else if (!leftWorker && sendBack != null) {
+            mp.send(session.createObjectMessage(sendBack));
+            Coin receivedCoinBack = (Coin) ((ObjectMessage) mc.receive()).getObject();
+            myCoinlist.addHead(receivedCoinBack);
+            System.out.println("Right worker received: (SENT BACK) " + receivedCoinBack.toString());
+            System.out.println("====== ADDED HEAD =======");
+
+        }
+    }
+
+    private static void exchangeValues(boolean leftWorker, Session session, MessageProducer mp, MessageConsumer mc) throws JMSException {
+        boolean done = false;
+        Coin receivedCoin = null;
+        Coin sendCoin = null;
+        while (!done) {
+            if (leftWorker) {
+                sendCoin = myCoinlist.giveTailElementAndRemove();
+                //Stuur de grootste Coin van mijn eigen gesorteerde lijst weg
+                mp.send(session.createObjectMessage(sendCoin));
+                //Ontvang van een andere worker zijn laagste Coin
+                receivedCoin = (Coin) ((ObjectMessage) mc.receive()).getObject();
+
+            } else {
+                sendCoin = myCoinlist.giveHeadElementAndRemove();
+                //Stuur de laagste Coin van mijn eigen gesorteerde lijst weg
+                mp.send(session.createObjectMessage(sendCoin));
+                //Ontvang van een andere worker zijn laagste Coin
+                receivedCoin = (Coin) ((ObjectMessage) mc.receive()).getObject();
+
+            }
+            done = processExchangedValues(sendCoin, receivedCoin, leftWorker);
+
+
+
+        }
+    }
+
     /**
      * NODE A; 2 3 5 6 7 12
      * NODE B: 1 4 8 9 10 11
@@ -321,30 +237,29 @@ public class Worker implements JMSConnection {
      */
 
 
-    private static boolean processExchangedValues(Coin sentCoin, Coin receivedCoin, LinkedList myList, boolean isLeftWorker) {
-        if(isLeftWorker){
-            if(sentCoin.compareTo(receivedCoin) < 0){
+    private static boolean processExchangedValues(Coin sentCoin, Coin receivedCoin, boolean isLeftWorker) {
+        if (isLeftWorker) {
+            if (sentCoin.compareTo(receivedCoin) < 0) {
                 sendBack = receivedCoin;
                 return true;
             }
-            if(receivedCoin.compareTo(myList.giveHeadElement().c) < 0){
-                myList.addHead(receivedCoin);
+            if (receivedCoin.compareTo(myCoinlist.giveHeadElement().c) < 0) {
+                myCoinlist.addHead(receivedCoin);
                 return false;
             }
-            myList.insert(receivedCoin);
-        }else{
-            if(sentCoin.compareTo(receivedCoin) > 0){
+            myCoinlist.insert(receivedCoin);
+        } else {
+            if (sentCoin.compareTo(receivedCoin) > 0) {
                 sendBack = receivedCoin;
                 return true;
             }
-            if(receivedCoin.compareTo(myList.giveTailElement().c) > 0){
-                myList.addTail(receivedCoin);
+            if (receivedCoin.compareTo(myCoinlist.giveTailElement().c) > 0) {
+                myCoinlist.addTail(receivedCoin);
                 return false;
             }
-            myList.insert(receivedCoin);
+            myCoinlist.insert(receivedCoin);
         }
         return false;
-
     }
 
     public static List<Coin> generateCoinObjects(int workerId) {
@@ -355,19 +270,21 @@ public class Worker implements JMSConnection {
         return objectMessage instanceof WorkerTextMessage;
     }
 
-    private static int determineQueueId(int workerId){
-        if(workerId <= 2){
+    private static int determineQueueId(int workerId) {
+        if (workerId <= 2) {
             return 0;
-        }else{
+        } else {
             return 1;
         }
 
     }
-    private static String getHeadQueue(int workerId){
-        return "head"+determineQueueId(workerId);
+
+    private static String getHeadQueue(int workerId) {
+        return "head" + determineQueueId(workerId);
     }
-    private static String getTailQueue(int workerId){
-        return "tail"+determineQueueId(workerId);
+
+    private static String getTailQueue(int workerId) {
+        return "tail" + determineQueueId(workerId);
     }
 
 

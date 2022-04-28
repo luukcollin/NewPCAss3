@@ -17,7 +17,7 @@ public class Master {
         Scanner input = new Scanner(System.in);
         System.out.print("Hoeveel nodes zullen we gebruiken voor deze operatie?");
         int amountOfNodes = input.nextInt();
-        createOfficer(); //TODO method could be void
+        createOfficer(amountOfNodes); //TODO method could be void
         Process[] processes = createWorkers(amountOfNodes);
         for(Process p : processes){
             p.waitFor(); //Wacht totdat alle workers hun eigen data gegenereert en gesorteerd hebben.
@@ -78,13 +78,14 @@ public class Master {
         return processes;
     }
 
-    public Process createOfficer() throws IOException {
+    public Process createOfficer(int amountOfNodes) throws IOException {
 
 
         String javaBin = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
         String classPath = System.getProperty("java.class.path");
         ProcessBuilder child = new ProcessBuilder(
-                    javaBin, "-classpath", classPath, Officer.class.getCanonicalName());
+
+                    javaBin, "-classpath", classPath, Officer.class.getCanonicalName(),  "--numClients", String.valueOf(amountOfNodes));
        return child.inheritIO().start();
 
     }
