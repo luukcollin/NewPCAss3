@@ -1,10 +1,7 @@
 import java.io.Serializable;
-import java.util.List;
 
 public class CoinListMessage implements Serializable {
-
-    private Node head;
-
+    private final Node head;
     public CoinListMessage(Node node) {
         this.head = node;
     }

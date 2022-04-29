@@ -6,9 +6,10 @@ public class Timer {
     private static boolean timerIsRunning = false;
     private static long startingState = 0;
 
-    public static void start(){
+    public void start(){
         if(!timerIsRunning) {
             startingState = startTimer();
+            timerIsRunning = true;
             System.out.println("The timer has started!");
 
         }else {
@@ -17,7 +18,7 @@ public class Timer {
         }
     }
 
-    public static void stop(){
+    public void stop(){
         if(timerIsRunning){
             long endState = stopTimer();
             System.out.println("The timer has stopped!");
@@ -40,6 +41,7 @@ public class Timer {
         return System.currentTimeMillis();
     }
     private static void printTimerResults(long startTime, long endTime){
-        System.out.printf(String.format("Timer started at %s. \nIt stopped  after %sms...Therefore\nIt ended at: %s}", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(startTime).toString(), endTime-startTime, new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(endTime).toString()));
+        String output = String.format("Timer started at %s. \nIt stopped  after %sms...Therefore\nIt ended at: %s}", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(startTime), endTime-startTime, new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(endTime));
+        System.out.println(output);
     }
 }

@@ -9,16 +9,8 @@ public class Worker implements JMSConnection {
     static LinkedList myCoinList = new LinkedList();
 
     public static void main(String[] args) throws JMSException {
-        int workerId = 0;
         int numClients = Integer.parseInt(args[3]);
-        ;
-        for (int i = 0; i < args.length; i++) {
-            if (args[i].equals("--workerId")) {
-                i++;
-                workerId = Integer.parseInt(args[i]);
-            }
-        }
-
+        int workerId = Integer.parseInt(args[1]);
 
         //This a special case, where the node is the third wheel.
         boolean specialWorker = (numClients % 2 == 1 && workerId == numClients);
@@ -30,10 +22,11 @@ public class Worker implements JMSConnection {
         }
         //Sorteer de lijst d.m.v. een recursief Merge Sort algoritme
         myCoinList.sortList();
-        if (numClients == 1) {
+
+        boolean sequentialProcess = numClients == 1;
+        if (sequentialProcess) {
             myCoinList.printList(true);
         } else {
-
             //Zet de connectie op met JMS
             JMSFactory jmsFactory = new JMSFactory();
             Connection connection = jmsFactory.startConnection(CONNECTION_URL);
@@ -63,12 +56,11 @@ public class Worker implements JMSConnection {
                 MessageProducer officerProducer = jmsFactory.createProducerQueue(session, "officer");
                 officerProducer.send(session.createObjectMessage(new WorkerTextMessage("done_merging", String.valueOf(workerId))));
                 MessageConsumer officerMessageConsumer = jmsFactory.createConsumerQueue(session, "message-server-" + workerId);
+
                 if (numClients >= 4) {
                     String queueToConsume = null;
                     String queueToProduce = null;
-
-                    while (queueToConsume == null || queueToProduce == null && !specialWorker) {
-
+                    while (queueToConsume == null || queueToProduce == null) {
                         WorkerTextMessage receivedMessage = (WorkerTextMessage) ((ObjectMessage) officerMessageConsumer.receive()).getObject();
                         if (receivedMessage.getMessageType().equals("consume")) {
                             queueToConsume = receivedMessage.getMessage();
@@ -76,7 +68,6 @@ public class Worker implements JMSConnection {
                             queueToProduce = receivedMessage.getMessage();
                         }
                     }
-
                     MessageProducer messageProducer1 = jmsFactory.createProducerQueue(session, queueToProduce);
                     MessageConsumer messageConsumer1 = jmsFactory.createConsumerQueue(session, queueToConsume);
                     leftWorker = !queueToConsume.contains("tail");
@@ -86,26 +77,28 @@ public class Worker implements JMSConnection {
                     //Notify the officer that I'm done with merging step 2.
                     officerProducer.send(session.createObjectMessage(new WorkerTextMessage("done_merging_step2", String.valueOf(workerId))));
 
-
                     boolean stopWithProcess = false;
-                    MessageConsumer step3Consumer = null;
-                    MessageProducer step3Producer = null;
                     boolean skipStep3 = false;
                     boolean left = false;
+                    MessageConsumer step3Consumer = null;
+                    MessageProducer step3Producer = null;
                     while (!stopWithProcess) {
-
                         if (step3Consumer == null || step3Producer == null) {
                             WorkerTextMessage officerMessage = (WorkerTextMessage) ((ObjectMessage) officerMessageConsumer.receive()).getObject();
-                            if (officerMessage.getMessageType().equals("continue")) {
-                                stopWithProcess = officerMessage.getMessage().equals("true");
-                                skipStep3 = stopWithProcess;
-                            } else if (officerMessage.getMessageType().equals("produce")) {
-                                String receivedQueueToProduce = officerMessage.getMessage();
-                                left = !receivedQueueToProduce.contains("head");
-                                step3Producer = jmsFactory.createProducerQueue(session, receivedQueueToProduce);
-                            } else if (officerMessage.getMessageType().equals("consume")) {
-                                String receivedQueueToConsume = officerMessage.getMessage();
-                                step3Consumer = jmsFactory.createConsumerQueue(session, receivedQueueToConsume);
+                            switch (officerMessage.getMessageType()) {
+                                case "continue":
+                                    stopWithProcess = officerMessage.getMessage().equals("true");
+                                    skipStep3 = stopWithProcess;
+                                    break;
+                                case "produce":
+                                    String receivedQueueToProduce = officerMessage.getMessage();
+                                    left = !receivedQueueToProduce.contains("head");
+                                    step3Producer = jmsFactory.createProducerQueue(session, receivedQueueToProduce);
+                                    break;
+                                case "consume":
+                                    String receivedQueueToConsume = officerMessage.getMessage();
+                                    step3Consumer = jmsFactory.createConsumerQueue(session, receivedQueueToConsume);
+                                    break;
                             }
                         } else {
                             stopWithProcess = true;
@@ -116,7 +109,6 @@ public class Worker implements JMSConnection {
                         sendBackAndReceive(left, step3Producer, step3Consumer, session);
                     }
                 }
-
                 //Worker stuurt zijn inmiddels gesorteerde lijst naar merged-Alpha queue, maar enkel als hij een bericht krijgt van de Officer.
                 //Op deze manier komen de berichten gesorteerd aan bij de officer.
                 String queueName = "merged-Alpha";
@@ -135,6 +127,7 @@ public class Worker implements JMSConnection {
                 coinListProducer.send(session.createObjectMessage(new CoinListMessage(myCoinList.giveHeadElement())));
             }
         }
+        System.exit(0);
     }
 
     //Methode die het teruggeven van coins afhandeld. Wanneer de headWorker een Coin heeft gegeven aan de tailWorker die kleiner is dan de
@@ -154,23 +147,21 @@ public class Worker implements JMSConnection {
     //Methode voor het uitwisselen van Coin tussen messageProducers en messageConsumers.
     private static void exchangeValues(boolean leftWorker, Session session, MessageProducer mp, MessageConsumer mc) throws JMSException {
         boolean done = false;
-        Coin receivedCoin = null;
-        Coin sendCoin = null;
+        Coin receivedCoin;
+        Coin sendCoin;
         while (!done) {
             if (leftWorker) {
                 sendCoin = myCoinList.giveTailElementAndRemove();
                 //Stuur de grootste Coin van mijn eigen gesorteerde lijst weg
-                mp.send(session.createObjectMessage(sendCoin));
                 //Ontvang van een andere worker zijn laagste Coin
-                receivedCoin = (Coin) ((ObjectMessage) mc.receive()).getObject();
             } else {
                 sendCoin = myCoinList.giveHeadElementAndRemove();
                 //Stuur de laagste Coin van mijn eigen gesorteerde lijst weg
-                mp.send(session.createObjectMessage(sendCoin));
                 //Ontvang van een andere worker zijn laagste Coin
-                receivedCoin = (Coin) ((ObjectMessage) mc.receive()).getObject();
 
             }
+            mp.send(session.createObjectMessage(sendCoin));
+            receivedCoin = (Coin) ((ObjectMessage) mc.receive()).getObject();
             done = processExchangedValues(sendCoin, receivedCoin, leftWorker);
         }
     }
@@ -186,7 +177,6 @@ public class Worker implements JMSConnection {
                 myCoinList.addHead(receivedCoin);
                 return false;
             }
-            myCoinList.insert(receivedCoin);
         } else {
             if (sentCoin.compareTo(receivedCoin) > 0) {
                 sendBack = receivedCoin;
@@ -196,8 +186,8 @@ public class Worker implements JMSConnection {
                 myCoinList.addTail(receivedCoin);
                 return false;
             }
-            myCoinList.insert(receivedCoin);
         }
+        myCoinList.insert(receivedCoin);
         return false;
     }
 

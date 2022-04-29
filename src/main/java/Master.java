@@ -1,18 +1,23 @@
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
 import java.util.Scanner;
 
 public class Master {
     public static void main(String[] args) throws IOException, InterruptedException {
         Scanner input = new Scanner(System.in);
-        System.out.print("Hoeveel nodes zullen we gebruiken voor deze operatie?");
+        System.out.print("Hoeveel nodes zullen we gebruiken voor deze operatie? [1, 2, 3, 4]");
         int amountOfNodes = input.nextInt();
+
+        Timer timer = new Timer();
+        timer.start();
         createOfficer(amountOfNodes); //TODO method could be void
         Process[] processes = createWorkers(amountOfNodes);
         for(Process p : processes) {
             p.waitFor(); //Wacht totdat alle workers hun eigen data gegenereert en gesorteerd hebben.
         }
+        timer.stop();
+
+        System.exit(0);
     }
 
 
@@ -34,11 +39,11 @@ public class Master {
     }
 
     //Er is maar één officier. Deze staat in verbinding met alle workers en geef orders aan hen.
-    public static Process createOfficer(int amountOfNodes) throws IOException {
+    public static void createOfficer(int amountOfNodes) throws IOException {
         String javaBin = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
         String classPath = System.getProperty("java.class.path");
         ProcessBuilder child = new ProcessBuilder(
                     javaBin, "-classpath", classPath, Officer.class.getCanonicalName(),  "--numClients", String.valueOf(amountOfNodes));
-       return child.inheritIO().start();
+       child.inheritIO().start();
     }
 }

@@ -1,5 +1,4 @@
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class Sort {
@@ -14,5 +13,19 @@ public class Sort {
           current = current.next;
         }
         return true;
+    }
+
+    public List<Node> sortNodesEasily(List<Node> nodes){
+       for(int i = 0; i < nodes.size(); i++){
+           for(int j = i+1; j < nodes.size(); j++){
+               if(nodes.get(i).c.compareTo(nodes.get(j).c) > 0){
+                   Node temp = nodes.get(i);
+                   nodes.set(i, nodes.get(j));
+                   nodes.set(j, temp);
+
+               }
+           }
+       }
+       return nodes;
     }
 }

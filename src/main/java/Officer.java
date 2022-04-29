@@ -1,18 +1,35 @@
 import javax.jms.*;
 import java.util.*;
 
+/**
+ * In geval van 4 Nodes:
+ * 1. Merge 1 and 2, merge 3 and 4. [1: LEFT, 2: RIGHT, 3: LEFT, 4: RIGHT]
+ * 2. Merge 1 and 3, merge 2 and 4. [1: LEFT, 2: LEFT, 3: RIGHT, 4: RIGHT]
+ * 3. Merge 2 and 3. [1: LEFT, 2 left MID, 3 right MID, 4 RIGHT]
+ * <p>
+ * In geval van 3 Nodes:
+ * 1. Merge 1 and 2.
+ * 2. Merge Merged-1-2 with 3.
+ * <p>
+ * In geval van 2 Nodes:
+ * 1. Merge 1 and 2.
+ * <p>
+ * In geval van 1 Node:
+ * 1. print direct de gesorteerde lijst
+ */
 public class Officer implements JMSConnection {
 
-    public static void main(String args[]) throws JMSException {
+    public static void main(String[] args) throws JMSException {
         int numClients = Integer.parseInt(args[1]);
-        System.out.println("NUMBER CLIENTS: " + numClients);
         JMSFactory factory = new JMSFactory();
         Connection connection = factory.startConnection(CONNECTION_URL);
         Session session = factory.createSession(connection);
-        MessageConsumer consumer = factory.createConsumerQueue(session, "officer");
+        MessageConsumer consumer = factory.createConsumerQueue(session, "officer"); //Known bug: Soms komen er 2 consumers op
+        //de officer queue. In principe slaat dit nergens op, maar wordt verholpen door de pc opnieuw op te starten. Enkel activemq opnieuw opstarten is
+        //en alle queues en topics verwijderen is soms niet voldoende. Dit fenomeen staat bekend als een ghost consumer, ofwel dead consumer.
 
 
-        ArrayList<Integer> nodesThatAreDoneWithMerging = new ArrayList<Integer>();
+        ArrayList<Integer> nodesThatAreDoneWithMerging = new ArrayList<>();
         //In geval van oneven aantal nodes is er in deze stap 1 merge minder t.o.z. van even aantal nodes
         int numClientsExpectedToBeDoneWithMerging = numClients % 2 == 0 ? numClients : numClients - 1;
         while (nodesThatAreDoneWithMerging.size() < numClientsExpectedToBeDoneWithMerging) {
@@ -28,36 +45,19 @@ public class Officer implements JMSConnection {
         WorkerCommunication workerCommunication = new WorkerCommunication(numClients);
         String[] messageServers = workerCommunication.createMessageServerQueueNames();
         List<MessageProducer> commmunicators = new ArrayList<>();
-        for (int i = 0; i < messageServers.length; i++) {
-            commmunicators.add(factory.createProducerQueue(session, messageServers[i]));
+        for (String messageServer : messageServers) {
+            commmunicators.add(factory.createProducerQueue(session, messageServer));
         }
-
-        /**
-         * In geval van 4 Nodes:
-         * 1. Merge 1 and 2, merge 3 and 4. [1: LEFT, 2: RIGHT, 3: LEFT, 4: RIGHT]
-         * 2. Merge 1 and 3, merge 2 and 4. [1: LEFT, 2: LEFT, 3: RIGHT, 4: RIGHT]
-         * 3. Merge 2 and 3. [1: LEFT, 2 left MID, 3 right MID, 4 RIGHT]
-         */
-
-        /**
-         * In geval van 3 Nodes:
-         * 1. Merge 1 and 2.
-         * 2. Merge Merged-1-2 with 3.
-         */
-
-
         //In geval van 4 nodes of meer.
         if (numClients >= 4) {
             String[] odds = new String[]{"head-a", "tail-a"};
-            String[] evens = new String[]{"head-x", "tail-x"};
+            String[] evens = new String[]{"head-b", "tail-b"};
             boolean produce = true;
-            boolean even = true;
+
             for (MessageProducer communicator : commmunicators) {
                 int index = 0;
-                if (numClients >= 3) {
-                    even = commmunicators.indexOf(communicator) % 2 == 0;
-                }
-                System.out.println("lols " + even);
+
+                boolean even = commmunicators.indexOf(communicator) % 2 == 0;
                 communicator.send(session.createObjectMessage(new WorkerTextMessage(produce ? "produce" : "consume", even ? evens[index++] : odds[index++])));
                 communicator.send(session.createObjectMessage(new WorkerTextMessage(produce ? "consume" : "produce", even ? evens[index] : odds[index])));
                 if (even) {
@@ -65,7 +65,7 @@ public class Officer implements JMSConnection {
                 }
             }
             //Officer will wait again till Nodes are done with merging...
-            ArrayList<Integer> nodesThatAreDoneWithMergingStep2 = new ArrayList<Integer>();
+            ArrayList<Integer> nodesThatAreDoneWithMergingStep2 = new ArrayList<>();
             while (nodesThatAreDoneWithMergingStep2.size() < numClients) {
                 System.out.println("wachten op nodes die klaar zijn met mergen step 2");
                 WorkerTextMessage workerTextMessage = (WorkerTextMessage) ((ObjectMessage) consumer.receive()).getObject();
@@ -93,7 +93,7 @@ public class Officer implements JMSConnection {
         }
         int i = 0;
         MessageConsumer alphaConsumer = factory.createConsumerQueue(session, "merged-Alpha");
-        ArrayList<Node> coinListsInOrderSorted = new ArrayList<>();
+        List<Node> coinListsInOrderSorted = new ArrayList<>();
         while (i < commmunicators.size()) {
             commmunicators.get(i).send(session.createObjectMessage(new WorkerTextMessage("send-to-alpha", "well done mate, thanks for you work")));
             coinListsInOrderSorted.add(0, ((CoinListMessage) ((ObjectMessage) alphaConsumer.receive()).getObject()).getNode());
@@ -102,20 +102,40 @@ public class Officer implements JMSConnection {
 
         System.out.println("-----------------------------------------------------");
 
-        LinkedList my = new LinkedList();
+        LinkedList linkedlist = new LinkedList();
+        List<Coin> sortedResult = new ArrayList<>();
         if (numClients % 2 != 0) {
-            Node firstAndSecond = my.merge(coinListsInOrderSorted.get(0), coinListsInOrderSorted.get(1));
-            coinListsInOrderSorted.set(0, my.merge(firstAndSecond, coinListsInOrderSorted.get(2)));
-            coinListsInOrderSorted.get(0).revealGenealogy();
+            Node firstAndSecond = linkedlist.merge(coinListsInOrderSorted.get(0), coinListsInOrderSorted.get(1));
+            coinListsInOrderSorted.set(0, linkedlist.merge(firstAndSecond, coinListsInOrderSorted.get(2)));
+
             System.out.println("Sorted: " + new Sort().isSorted(coinListsInOrderSorted.get(0)));
-            System.out.println("AMOUNT OF ELEMENTS: " + (coinListsInOrderSorted.get(0).revealGenealogy().size()));
+            coinListsInOrderSorted.get(0).revealGenealogy();
         } else {
-            for (Node n : coinListsInOrderSorted) {
+            for (Node n : new Sort().sortNodesEasily(coinListsInOrderSorted)) {
+                sortedResult.addAll(n.revealGenealogy());
                 System.out.println(coinListsInOrderSorted.indexOf(n) + 1 + ": \n");
                 n.revealGenealogy();
-                System.out.println(new Sort().isSorted(n) ? "Sorted" : "Unsorted");
+                System.out.println("This node is: " + (new Sort().isSorted(n) ? "Sorted" : "Unsorted"));
             }
         }
-        System.out.println("ALLE RESULTATEN ZIJN BINNENGEHENGELD DOOR DE OFFICIER");
+
+        for (Coin c : sortedResult) {
+            System.out.println(c.toString());
+        }
+
+
+
+
+
+        System.out.println("===== QUICK TEST RESULTS =====");
+        ListTest listTester = new ListTest();
+        System.out.println("[" + listTester.isSorted(sortedResult) + "] Elementen in sortedResult zijn gesorteerd: ");
+        System.out.println("[" + listTester.containsOnlyUniqueElements(sortedResult) + "] Elementen in sortedResult zijn allemaal uniek: ");
+        System.out.println("[" + listTester.listHasExpectedSize(sortedResult, numClients, AMOUNT_OF_ELEMENTS) + "] Het aantal elementen in de lijst is hetzelfde als verwacht: ");
+        System.out.println("Totaal van: " + sortedResult.size() + " elementen");
+
+        System.exit(0);
     }
+
+
 }
