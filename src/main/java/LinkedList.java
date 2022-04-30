@@ -31,28 +31,6 @@ public class LinkedList {
         }
     }
 
-
-    //Print de lijst
-    public void printList(boolean isLeft) {
-        System.out.println(createFormattedOutput(isLeft, head));
-    }
-
-    public String createFormattedOutput(boolean isLeft, Node n) {
-        String output = "";
-        Node current = head;
-        int count = 0;
-        while (current != null) {
-            output += current.c.toString() + "\n";
-            current = current.next;
-            count++;
-        }
-        String leftOrRight = isLeft ? "Left" : "Right\n";
-        String headElement = "Head element is: " + giveHeadElement().c.toString() + "\n";
-        String tailElement = "Tail element is: " + giveTailElement().c.toString() + "\n";
-        return leftOrRight + headElement + tailElement + count + " elements in list:\n" + output;
-    }
-
-
     //Return sorted list
     public void sortList() {
         head = mergeSort(head);

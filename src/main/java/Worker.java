@@ -25,7 +25,9 @@ public class Worker implements JMSConnection {
 
         boolean sequentialProcess = numClients == 1;
         if (sequentialProcess) {
-            myCoinList.printList(true);
+            for(Coin c : myCoinList.giveHeadElement().revealGenealogy()){
+                System.out.println(c.toString());
+            }
         } else {
             //Zet de connectie op met JMS
             JMSFactory jmsFactory = new JMSFactory();
@@ -51,11 +53,10 @@ public class Worker implements JMSConnection {
 
                 //Nu heeft de leftworker enkel getallen (coins) die kleiner zijn dan alle getallen van de rightworker
                 //Tijd om de officer te berichten dat alles goed verlopen is
-
-                System.out.println("------------------------- WE SEND MESSAGE TO OFFICER -----");
                 MessageProducer officerProducer = jmsFactory.createProducerQueue(session, "officer");
                 officerProducer.send(session.createObjectMessage(new WorkerTextMessage("done_merging", String.valueOf(workerId))));
                 MessageConsumer officerMessageConsumer = jmsFactory.createConsumerQueue(session, "message-server-" + workerId);
+                System.out.println("===== Node (" +  (workerId + ")  just sent message to officer =====\n"));
 
                 if (numClients >= 4) {
                     String queueToConsume = null;

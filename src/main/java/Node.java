@@ -9,18 +9,15 @@ public class Node implements Serializable {
     Node(Coin c) {
         this.c = c;
         next = null;
-
     }
 
-    //Het onthullen van een Node zijn stamboom wordt enkel gebruikt voor SortTest.java voor test purposes
+    //Het onthullen van een Node zijn stamboom. Geeft een lijst van coins.
     public List<Coin> revealGenealogy() {
         List<Coin> allCoinsInNodeList = new ArrayList<>();
         Node temp = this;
         while (temp != null) {
             allCoinsInNodeList.add(temp.c);
-//            System.out.print(temp.c.toString());
             temp = temp.next;
-
         }
         return allCoinsInNodeList;
     }

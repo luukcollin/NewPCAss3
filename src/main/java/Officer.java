@@ -102,8 +102,6 @@ public class Officer implements JMSConnection {
             i++;
         }
 
-        System.out.println("-----------------------------------------------------");
-
         LinkedList linkedlist = new LinkedList();
         List<Coin> sortedResult = new ArrayList<>();
         if (numClients % 2 != 0) {
@@ -114,44 +112,39 @@ public class Officer implements JMSConnection {
             coinListsInOrderSorted = new Sort().sortNodesEasily(coinListsInOrderSorted); //In principe komen alle nodes al in volgorde aan, maar er zijn
             //wel eens specifieke gevallen dat dat niet zo is, daarom sorteerd we met een simpele bubbelsort de lijsten voor de zekerheid, dit gaat bij 4 nodes om 4 elementen.
             Node result = null;
-            for (i = 0; i < coinListsInOrderSorted.size()-1; ) {
-                if(result == null) {
+            for (i = 0; i < coinListsInOrderSorted.size() - 1; ) {
+                if (result == null) {
                     result = linkedlist.merge(coinListsInOrderSorted.get(i++), coinListsInOrderSorted.get(i++));
-                }else{
+                } else {
                     result = linkedlist.merge(result, linkedlist.merge(coinListsInOrderSorted.get(i++), coinListsInOrderSorted.get(i++)));
                 }
-//                coinListsInOrderSorted.set(0, linkedlist.merge(firstAndSecond, coinListsInOrderSorted.get(2)));
-//                sortedResult = coinListsInOrderSorted.get(0).revealGenealogy();
-//                sortedResult.addAll(n.revealGenealogy());
-//
-//                System.out.println(coinListsInOrderSorted.indexOf(n) + " - " + n.c.toString());
-//                System.out.println();
+                sortedResult = result.revealGenealogy();
             }
-//            Node[] nodes2 = new Node[coinListsInOrderSorted.size()];
-//            for(i = 0; i < coinListsInOrderSorted.size()-1; i++){
-//                Node firstAndSecond = linkedlist.merge(coinListsInOrderSorted.get(i++), coinListsInOrderSorted.get(i++));
-//                nodes2[i/2] = firstAndSecond;
-//
-//            }
-//            List<Node> sortedNodes = new Sort().sortNodesEasily(coinListsInOrderSorted);
-//            for(Node n : sortedNodes){
-//                sortedResult.addAll(n.revealGenealogy());
-            sortedResult = result.revealGenealogy();
-        }
-        for (Coin c : sortedResult) {
-            System.out.println(c.toString());
+            for (Coin c : sortedResult) {
+                System.out.println(c.toString());
+            }
         }
         System.out.println("^^^ The sorted list is printed above. (Sorted on price, then marketcap, etc.) ^^^ \n");
 
+
+
         System.out.println("===== QUICK TEST RESULTS =====");
         ListTest listTester = new ListTest();
-        System.out.println("[" + (listTester.isSorted(sortedResult) ? "PASSED" : "FAILED") + "] Elementen in sortedResult zijn gesorteerd: ");
-        System.out.println("[" + (listTester.containsOnlyUniqueElements(sortedResult) ? "PASSED" : "FAILED") + "] Elementen in sortedResult zijn allemaal uniek: ");
-        System.out.println("[" + (listTester.listHasExpectedSize(sortedResult, numClients, AMOUNT_OF_ELEMENTS) ? "PASSED" : "FAILED") + "] Het aantal elementen in de lijst is hetzelfde als verwacht: ");
-        System.out.println("\nTotaal van: " + sortedResult.size() + " elementen");
+        System.out.println( format(listTester.isSorted(sortedResult)) + "Elementen in sortedResult zijn gesorteerd: ");
+        System.out.println(format(listTester.containsOnlyUniqueElements(sortedResult)) + "Elementen in sortedResult zijn allemaal uniek: ");
+        System.out.println(format(listTester.listHasExpectedSize(sortedResult, numClients, AMOUNT_OF_ELEMENTS)) + "Het aantal elementen in de lijst is hetzelfde als verwacht: ");
+        System.out.println("\n \u001B[40m \u001B[46m Totaal van: " + sortedResult.size() + " elementen  \u001B[0m" );
         System.exit(0);
+
 
     }
 
-
+    private static String format(boolean passed){
+        String text = passed? "PASSED": "FAILED";
+        String clear = "\u001B[0m";
+        String test_passed = "\u001B[32m";
+        String test_failed = "\u001B[31m";
+        String format = passed ? test_passed : test_failed;
+        return "[" + format + text + clear + "] ";
+    }
 }

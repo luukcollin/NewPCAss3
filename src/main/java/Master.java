@@ -10,7 +10,7 @@ public class Master {
 
         Timer timer = new Timer();
         timer.start();
-        createOfficer(amountOfNodes); //TODO method could be void
+        createOfficer(amountOfNodes);
         Process[] processes = createWorkers(amountOfNodes);
         for(Process p : processes) {
             p.waitFor(); //Wacht totdat alle workers hun eigen data gegenereert en gesorteerd hebben.
