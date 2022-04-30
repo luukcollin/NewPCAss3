@@ -100,13 +100,9 @@ public class LinkedList {
         // Pick the smaller value
         if (first.c.compareTo(second.c) < 0) {
             first.next = merge(first.next, second);
-            first.next.prev = first;
-            first.prev = null;
             return first;
         } else {
             second.next = merge(first, second.next);
-            second.next.prev = second;
-            second.prev = null;
             return second;
         }
     }

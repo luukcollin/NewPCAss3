@@ -8,9 +8,14 @@ public class ListTest {
 
     }
     public boolean isSorted(List<Coin> coinList){
-        for(int i = 0; i< coinList.size()-1; i++){
+        for(int i = 0; i< coinList.size()-1; i++) {
             Coin current = coinList.get(i);
-            if(coinList.get(i).compareTo(current) < 0) return false;
+            if (coinList.get(i + 1).compareTo(current) < 0) {
+                System.out.println(coinList.get(i).toString() + " not sorted");
+                return false;
+            }
+
+
         }
         return true;
     }

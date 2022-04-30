@@ -86,6 +86,8 @@ public class Officer implements JMSConnection {
             //W1 en w4 zijn al klaar, dus deze kunnen verder.
             commmunicators.get(0).send(session.createObjectMessage(new WorkerTextMessage("continue", "true")));
             commmunicators.get(3).send(session.createObjectMessage(new WorkerTextMessage("continue", "true")));
+        } else if (numClients == 1) {
+            System.exit(0);
         } else {
             for (MessageProducer communicator : commmunicators) {
                 communicator.send(session.createObjectMessage(new WorkerTextMessage("continue", "true")));
@@ -107,34 +109,48 @@ public class Officer implements JMSConnection {
         if (numClients % 2 != 0) {
             Node firstAndSecond = linkedlist.merge(coinListsInOrderSorted.get(0), coinListsInOrderSorted.get(1));
             coinListsInOrderSorted.set(0, linkedlist.merge(firstAndSecond, coinListsInOrderSorted.get(2)));
-
-            System.out.println("Sorted: " + new Sort().isSorted(coinListsInOrderSorted.get(0)));
-            coinListsInOrderSorted.get(0).revealGenealogy();
+            sortedResult = coinListsInOrderSorted.get(0).revealGenealogy();
         } else {
-            for (Node n : new Sort().sortNodesEasily(coinListsInOrderSorted)) {
-                sortedResult.addAll(n.revealGenealogy());
-                System.out.println(coinListsInOrderSorted.indexOf(n) + 1 + ": \n");
-                n.revealGenealogy();
-                System.out.println("This node is: " + (new Sort().isSorted(n) ? "Sorted" : "Unsorted"));
+            coinListsInOrderSorted = new Sort().sortNodesEasily(coinListsInOrderSorted); //In principe komen alle nodes al in volgorde aan, maar er zijn
+            //wel eens specifieke gevallen dat dat niet zo is, daarom sorteerd we met een simpele bubbelsort de lijsten voor de zekerheid, dit gaat bij 4 nodes om 4 elementen.
+            Node result = null;
+            for (i = 0; i < coinListsInOrderSorted.size()-1; ) {
+                if(result == null) {
+                    result = linkedlist.merge(coinListsInOrderSorted.get(i++), coinListsInOrderSorted.get(i++));
+                }else{
+                    result = linkedlist.merge(result, linkedlist.merge(coinListsInOrderSorted.get(i++), coinListsInOrderSorted.get(i++)));
+                }
+//                coinListsInOrderSorted.set(0, linkedlist.merge(firstAndSecond, coinListsInOrderSorted.get(2)));
+//                sortedResult = coinListsInOrderSorted.get(0).revealGenealogy();
+//                sortedResult.addAll(n.revealGenealogy());
+//
+//                System.out.println(coinListsInOrderSorted.indexOf(n) + " - " + n.c.toString());
+//                System.out.println();
             }
+//            Node[] nodes2 = new Node[coinListsInOrderSorted.size()];
+//            for(i = 0; i < coinListsInOrderSorted.size()-1; i++){
+//                Node firstAndSecond = linkedlist.merge(coinListsInOrderSorted.get(i++), coinListsInOrderSorted.get(i++));
+//                nodes2[i/2] = firstAndSecond;
+//
+//            }
+//            List<Node> sortedNodes = new Sort().sortNodesEasily(coinListsInOrderSorted);
+//            for(Node n : sortedNodes){
+//                sortedResult.addAll(n.revealGenealogy());
+            sortedResult = result.revealGenealogy();
         }
-
         for (Coin c : sortedResult) {
             System.out.println(c.toString());
         }
-
-
-
-
+        System.out.println("^^^ The sorted list is printed above. (Sorted on price, then marketcap, etc.) ^^^ \n");
 
         System.out.println("===== QUICK TEST RESULTS =====");
         ListTest listTester = new ListTest();
-        System.out.println("[" + listTester.isSorted(sortedResult) + "] Elementen in sortedResult zijn gesorteerd: ");
-        System.out.println("[" + listTester.containsOnlyUniqueElements(sortedResult) + "] Elementen in sortedResult zijn allemaal uniek: ");
-        System.out.println("[" + listTester.listHasExpectedSize(sortedResult, numClients, AMOUNT_OF_ELEMENTS) + "] Het aantal elementen in de lijst is hetzelfde als verwacht: ");
-        System.out.println("Totaal van: " + sortedResult.size() + " elementen");
-
+        System.out.println("[" + (listTester.isSorted(sortedResult) ? "PASSED" : "FAILED") + "] Elementen in sortedResult zijn gesorteerd: ");
+        System.out.println("[" + (listTester.containsOnlyUniqueElements(sortedResult) ? "PASSED" : "FAILED") + "] Elementen in sortedResult zijn allemaal uniek: ");
+        System.out.println("[" + (listTester.listHasExpectedSize(sortedResult, numClients, AMOUNT_OF_ELEMENTS) ? "PASSED" : "FAILED") + "] Het aantal elementen in de lijst is hetzelfde als verwacht: ");
+        System.out.println("\nTotaal van: " + sortedResult.size() + " elementen");
         System.exit(0);
+
     }
 
 

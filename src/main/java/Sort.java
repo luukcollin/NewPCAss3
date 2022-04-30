@@ -16,15 +16,15 @@ public class Sort {
     }
 
     public List<Node> sortNodesEasily(List<Node> nodes){
-       for(int i = 0; i < nodes.size(); i++){
-           for(int j = i+1; j < nodes.size(); j++){
-               if(nodes.get(i).c.compareTo(nodes.get(j).c) > 0){
-                   Node temp = nodes.get(i);
-                   nodes.set(i, nodes.get(j));
-                   nodes.set(j, temp);
-
-               }
-           }
+        int n = nodes.size();
+        for (int i = 0; i < n - 1; i++)
+            for (int j = 0; j < n - i - 1; j++){
+                if (nodes.get(j).c.compareTo(nodes.get(j  + 1).c) > 0) {
+                    // swap arr[j+1] and arr[j]
+                    Node temp = nodes.get(j);
+                    nodes.set(j, nodes.get(j + 1));
+                    nodes.set(j + 1, temp);
+                }
        }
        return nodes;
     }
