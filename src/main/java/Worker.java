@@ -159,7 +159,6 @@ public class Worker implements JMSConnection {
                 sendCoin = myCoinList.giveHeadElementAndRemove();
                 //Stuur de laagste Coin van mijn eigen gesorteerde lijst weg
                 //Ontvang van een andere worker zijn laagste Coin
-
             }
             mp.send(session.createObjectMessage(sendCoin));
             receivedCoin = (Coin) ((ObjectMessage) mc.receive()).getObject();

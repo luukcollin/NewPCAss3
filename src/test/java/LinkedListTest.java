@@ -37,7 +37,6 @@ public class LinkedListTest {
             //Idem
             listWhereTheMergeSortMagicHappens2.addHead(c);
         }
-
     }
 
 

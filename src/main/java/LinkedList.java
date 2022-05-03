@@ -65,17 +65,13 @@ public class LinkedList {
 
     // Function to merge two linked lists
     Node merge(Node first, Node second) {
-        // If first linked list is empty
         if (first == null) {
             return second;
         }
 
-        // If second linked list is empty
         if (second == null) {
             return first;
         }
-
-        // Pick the smaller value
         if (first.c.compareTo(second.c) < 0) {
             first.next = merge(first.next, second);
             return first;

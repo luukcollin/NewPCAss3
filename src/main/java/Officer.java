@@ -15,7 +15,7 @@ import java.util.*;
  * 1. Merge 1 and 2.
  * <p>
  * In geval van 1 Node:
- * 1. print direct de gesorteerde lijst
+ * 1. Sorteer sequentieel en print direct de gesorteerde lijst
  */
 public class Officer implements JMSConnection {
 
@@ -65,6 +65,7 @@ public class Officer implements JMSConnection {
                 }
             }
             //Officer will wait again till Nodes are done with merging...
+
             ArrayList<Integer> nodesThatAreDoneWithMergingStep2 = new ArrayList<>();
             while (nodesThatAreDoneWithMergingStep2.size() < numClients) {
                 System.out.println("wachten op nodes die klaar zijn met mergen step 2");

@@ -16,6 +16,7 @@ public class Master {
             p.waitFor(); //Wacht totdat alle workers hun eigen data gegenereert en gesorteerd hebben.
         }
         timer.stop();
+        System.out.println("\n== This was the end of a merge sort with " + amountOfNodes + " nodes. ==\n");
 
         System.exit(0);
     }

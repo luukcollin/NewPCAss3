@@ -20,14 +20,15 @@ public class Coin implements Comparable<Coin>, Serializable {
 
     @Override
     public int compareTo(Coin o) {
-        return Comparator.comparing((Coin c) -> c.price).thenComparing(c -> c.marketCap ).thenComparing(c -> c.id)
+        return Comparator.comparing((Coin c) -> c.marketCap).thenComparing(c -> c.price ).thenComparing(c -> c.id)
                 .thenComparing(c -> c.launchedAt).compare(this, o);
     }
 
     @Override
     public String toString(){
-        return "( Coin ID " + id +  " - Price " + price + " euro - Marketcap "+  + marketCap + " - Daily Volume " + dailyVolume +   " euro )\n";
+        return "( Coin ID " + id +  "   -   Marketcap "+ String.format("%.2f", marketCap) + marketCap   +  "   -   Price " + String.format("%.2f", price) + " euro   -   Daily Volume " + String.format("%.2f",dailyVolume) +   " euro )\n";
     }
+
 
 
 }
